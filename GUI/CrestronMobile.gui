@@ -1,0 +1,91 @@
+<gui>
+  <properties>
+    <project>CrestronMobile</project>
+    <designer>
+    </designer>
+    <size>
+      <portrait width="768" height="1024" />
+      <landscape width="1024" height="768" />
+    </size>
+    <imagefolder>
+    </imagefolder>
+    <debug loaderrors="0" connectionerrors="0" />
+    <devices>
+      <device name="IPad">7046914056B760B9DAEB87608F8BE308</device>
+      <device name="Scott's Ipad1">E2B813DF7F6A7A1D7376ECF085A643B3</device>
+      <device name="Scott's IPad2">F7833E22D736C01E04DCD30A3B0A3B6D</device>
+    </devices>
+  </properties>
+  <systems>
+    <system name="CrestronMobile" ip="192.168.0.249" port="50100" protocol="tcp" alwayson="1" accept="0" ssl="0" maxconnections="0" heartbeatRx="" heartbeatTx="" heartbeatMode="-1" eom="" connectionStatus="9000" disconnectionStatus="0">
+      <fb name="Feedback" regex="." />
+    </system>
+  </systems>
+  <themes>
+    <theme type="background" name=".landscape"><![CDATA[ background-image: url(bg_landscape.png); background-repeat: no-repeat;]]></theme>
+    <theme type="button" name=".btn_topbar[state='0']"><![CDATA[padding: 0px 7px 0px 7px; -webkit-border-image: url(btn_topbar_off.png) 0 7 0 7; text-shadow: rgba(0,0,0,1) 1px 1px 1px; color: White; font-size: 12px; font-family: 'Verdana'; font-weight: bold; font-style: none; text-decoration: none; text-align: center; vertical-align: middle; display: table-cell; box-sizing: border-box; -webkit-box-sizing: border-box; -webkit-tap-highlight-color:rgba(0,0,0,0);]]></theme>
+    <theme type="button" name=".btn_topbar[state='1']"><![CDATA[padding: 0px 7px 0px 7px; -webkit-border-image: url(btn_topbar_on.png) 0 7 0 7; text-shadow: rgba(0,0,0,1) 1px -1px 1px; color: White; font-size: 12px; font-family: 'Verdana'; font-weight: bold; font-style: none; text-decoration: none; text-align: center; vertical-align: middle; display: table-cell; box-sizing: border-box; -webkit-box-sizing: border-box; -webkit-tap-highlight-color:rgba(0,0,0,0);]]></theme>
+    <theme type="button" name=".btn_sqr[state='0']"><![CDATA[padding: 0px 15px 10px 15px; -webkit-border-image: url(btn_sqr_off.png) 0 15 10 15; text-shadow: rgba(255,255,255,1) 1px 1px 1px; color: Black; font-size: 34px; font-family: 'Verdana'; font-weight: bold; font-style: none; text-decoration: none; text-align: center; vertical-align: middle; display: table-cell; box-sizing: border-box; -webkit-box-sizing: border-box; -webkit-tap-highlight-color:rgba(0,0,0,0);]]></theme>
+    <theme type="button" name=".btn_sqr[state='1']"><![CDATA[padding: 0px 15px 10px 15px; -webkit-border-image: url(btn_sqr_on.png) 0 15 10 15; text-shadow: rgba(255,255,255,1) 1px 1px 1px; color: Black; font-size: 34px; font-family: 'Verdana'; font-weight: bold; font-style: none; text-decoration: none; text-align: center; vertical-align: middle; display: table-cell; box-sizing: border-box; -webkit-box-sizing: border-box; -webkit-tap-highlight-color:rgba(0,0,0,0);]]></theme>
+    <theme type="button" name=".btn_sqr_sml[state='0']"><![CDATA[padding: 0px 15px 8px 15px; -webkit-border-image: url(btn_sqr_sml_off.png) 0 15 8 15; text-shadow: rgba(255,255,255,1) 1px 1px 1px; color: Black; font-size: 20px; font-family: 'Verdana'; font-weight: bold; font-style: none; text-decoration: none; text-align: center; vertical-align: middle; display: table-cell; box-sizing: border-box; -webkit-box-sizing: border-box; -webkit-tap-highlight-color:rgba(0,0,0,0);]]></theme>
+    <theme type="button" name=".btn_sqr_sml[state='1']"><![CDATA[padding: 0px 15px 8px 15px; -webkit-border-image: url(btn_sqr_sml_on.png) 0 15 8 15; text-shadow: rgba(255,255,255,1) 1px 1px 1px; color: Black; font-size: 20px; font-family: 'Verdana'; font-weight: bold; font-style: none; text-decoration: none; text-align: center; vertical-align: middle; display: table-cell; box-sizing: border-box; -webkit-box-sizing: border-box; -webkit-tap-highlight-color:rgba(0,0,0,0);]]></theme>
+    <theme type="text" name=".Large_L"><![CDATA[ text-shadow: rgba(0,0,0,1) 1px -1px 1px; color: White; font-size: 34px; font-family: 'Arial'; text-align: left; vertical-align: middle; font-weight: bold; font-style: none; text-decoration: none; display: table-cell;]]></theme>
+    <theme type="gauge" name=".horizontal[state='0']"><![CDATA[ background-image: url(gauge_track_off.png);]]></theme>
+    <theme type="gauge" name=".horizontal[state='1']"><![CDATA[ background-image: url(gauge_track_on.png);]]></theme>
+    <theme type="button" name=".btn_voldown[state='0']"><![CDATA[padding: 0px 0px 0px 0px; background-image: url(btn_voldown_off.png); color: White; font-size: 12px; font-family: 'Verdana'; font-weight: normal; font-style: none; text-decoration: none; text-align: center; vertical-align: middle; display: table-cell; box-sizing: border-box; -webkit-box-sizing: border-box; -webkit-tap-highlight-color:rgba(0,0,0,0);]]></theme>
+    <theme type="button" name=".btn_voldown[state='1']"><![CDATA[padding: 0px 0px 0px 0px; background-image: url(btn_voldown_on.png); color: White; font-size: 12px; font-family: 'Verdana'; font-weight: normal; font-style: none; text-decoration: none; text-align: center; vertical-align: middle; display: table-cell; box-sizing: border-box; -webkit-box-sizing: border-box; -webkit-tap-highlight-color:rgba(0,0,0,0);]]></theme>
+    <theme type="button" name=".btn_categories[state='0']"><![CDATA[padding: 0px 12px 0px 12px; -webkit-border-image: url(btn_categories_off.png) 0 12 0 12; text-shadow: rgba(0,0,0,1) 1px 1px 1px; color: White; font-size: 12px; font-family: 'Verdana'; font-weight: bold; font-style: none; text-decoration: none; text-align: center; vertical-align: middle; display: table-cell; box-sizing: border-box; -webkit-box-sizing: border-box; -webkit-tap-highlight-color:rgba(0,0,0,0);]]></theme>
+    <theme type="button" name=".btn_categories[state='1']"><![CDATA[padding: 0px 12px 0px 12px; -webkit-border-image: url(btn_categories_on.png) 0 12 0 12; text-shadow: rgba(0,0,0,1) 1px 1px 1px; color: White; font-size: 12px; font-family: 'Verdana'; font-weight: bold; font-style: none; text-decoration: none; text-align: center; vertical-align: middle; display: table-cell; box-sizing: border-box; -webkit-box-sizing: border-box; -webkit-tap-highlight-color:rgba(0,0,0,0);]]></theme>
+    <theme type="button" name=".btn_volup[state='0']"><![CDATA[padding: 0px 0px 0px 0px; background-image: url(btn_volup_off.png); color: White; font-size: 12px; font-family: 'Verdana'; font-weight: normal; font-style: none; text-decoration: none; text-align: center; vertical-align: middle; display: table-cell; box-sizing: border-box; -webkit-box-sizing: border-box; -webkit-tap-highlight-color:rgba(0,0,0,0);]]></theme>
+    <theme type="button" name=".btn_volup[state='1']"><![CDATA[padding: 0px 0px 0px 0px; background-image: url(btn_volup_on.png); color: White; font-size: 12px; font-family: 'Verdana'; font-weight: normal; font-style: none; text-decoration: none; text-align: center; vertical-align: middle; display: table-cell; box-sizing: border-box; -webkit-box-sizing: border-box; -webkit-tap-highlight-color:rgba(0,0,0,0);]]></theme>
+    <theme type="text" name=".Title_C"><![CDATA[ text-shadow: rgba(0,0,0,1) 1px -1px 1px; color: White; font-size: 24px; font-family: 'Arial'; text-align: center; vertical-align: middle; font-weight: bold; font-style: none; text-decoration: none; display: table-cell;]]></theme>
+    <theme type="input" name=".input_default"><![CDATA[ background-color: White; border-width: 0px; color: Black; font-size: 12px; font-family: 'Arial'; text-align: left; vertical-align: middle; font-weight: bold; font-style: none; text-decoration: none; display: table-cell;]]></theme>
+  </themes>
+  <tokens>
+    <token name="[Password]" value="1234" persist="1" />
+    <token name="[MaxDigitalJoins]" value="2000" persist="1" />
+    <token name="[MinDigitalJoins]" value="200" persist="1" />
+    <token name="[CrestronMobile]" value="CrestronMobile" persist="1" />
+    <token name="[FeedbackName]" value="Feedback" />
+  </tokens>
+  <scripts>
+    <script name="CrestronMobile.js" />
+  </scripts>
+  <page name="Startup" j="0" transition="None" subtype="None" time="0" ease="">
+    <portrait />
+    <landscape t="landscape">
+      <btn j="1" x="290" y="307" w="179" h="66" t="btn_sqr_sml" flip="None" sim="0" l="0" s="1">
+        <inactive s="0">Digital 1</inactive>
+        <active s="0">Digital 1</active>
+      </btn>
+      <txt j="1" x="343" y="217" w="334" h="60" t="Title_C" wrap="False" l="0">
+      </txt>
+      <gauge j="1" x="367" y="405" w="306" h="13" t="horizontal" l="0" />
+      <btn j="2" x="388" y="459" w="105" h="106" t="btn_voldown" flip="None" sim="0" l="0" s="1">
+        <inactive s="0">
+        </inactive>
+        <active s="0">
+        </active>
+      </btn>
+      <btn j="2000" x="563" y="307" w="184" h="66" t="btn_sqr_sml" flip="None" sim="0" l="0" s="1">
+        <inactive s="0">Digital 2000</inactive>
+        <active s="0">Digital 2000</active>
+      </btn>
+      <btn j="9000" x="203" y="51" w="618" h="28" t="btn_categories" flip="None" sim="0" l="0" s="0">
+        <inactive s="0">Disconnected</inactive>
+        <active s="0">Connected</active>
+      </btn>
+      <btn j="3" x="548" y="459" w="105" h="106" t="btn_volup" flip="None" sim="0" l="0" s="1">
+        <inactive s="0">
+        </inactive>
+        <active s="0">
+        </active>
+      </btn>
+      <input j="0" s="2" x="212" y="103" w="589" h="23" pass="0" autoFocus="0" f="0" t="input_default" l="0">
+      </input>
+      <txt j="3" x="218" y="144" w="582" h="44" t="Title_C" wrap="False" l="0">
+      </txt>
+      <slider j="7" d="0" x="383" y="595" w="306" h="13" min="0" max="100" decimals="0" unit="decimal" t="horizontal" sim="0" l="0" />
+    </landscape>
+  </page>
+</gui>

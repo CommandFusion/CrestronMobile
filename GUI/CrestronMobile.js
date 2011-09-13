@@ -14,74 +14,35 @@ var CrestronMobile = {
 	
 	//Function to decode UTF text for serial strings
 	decode : function (utftext) {
-		var string = "";
-		var i = 0;
-		var c = c1 = c2 = 0;
- 
-		while ( i < utftext.length ) {
- 
-			c = utftext.charCodeAt(i);
- 
-			if (c < 128) {
-				string += String.fromCharCode(c);
-				i++;
-			}
-			else if((c > 191) && (c < 224)) {
-				c2 = utftext.charCodeAt(i+1);
-				string += String.fromCharCode(((c & 31) << 6) | (c2 & 63));
-				i += 2;
-			}
-			else {
-				c2 = utftext.charCodeAt(i+1);
-				c3 = utftext.charCodeAt(i+2);
-				string += String.fromCharCode(((c & 15) << 12) | ((c2 & 63) << 6) | (c3 & 63));
-				i += 3;
-			}
- 
-		}
-		return string;
+		return decodeURIComponent(escape(utfText));
 	},
 	
 	onButtonPressed: function(join, value, tokens){
-		var data;
-		var id;
-		
-		id = join.substring(1);
-		data = "<cresnet><data><bool id=\"" + id + "\" value=\"true\" repeating=\"true\"/></data></cresnet>";
-		CrestronMobile.sendData(data);		
-		digitalJoinRepeat[id] = setInterval("CrestronMobile.sendData('"+ data +"')", 500);		
+		var id = join.substring(1);
+		var data = "<cresnet><data><bool id=\"" + id + "\" value=\"true\" repeating=\"true\"/></data></cresnet>";
+		CrestronMobile.sendData(data);
+		digitalJoinRepeat[id] = setInterval("CrestronMobile.sendData('"+ data +"')", 500);
 	},
 	
 	onButtonReleased: function(join, value, tokens){
-		var data;
-		var id;
-
-		id = join.substring(1);
+		var id = join.substring(1);
 		clearInterval(digitalJoinRepeat[id]);		
-		data = "<cresnet><data><bool id=\"" + id + "\" value=\"false\" repeating=\"true\"/></data></cresnet>";	
-		CrestronMobile.sendData(data);								
+		CrestronMobile.sendData("<cresnet><data><bool id=\"" + id + "\" value=\"false\" repeating=\"true\"/></data></cresnet>");								
 	},
 	
 	onAnalogChanged: function(join, value){	
-		var data;
-		var id;
-		
-		id = join.substring(1);
-		
-		if(analogJoinValue[id] !== parseInt(value/655)){
-			data = "<cresnet><data><i32 id=\"" + id + "\" value=\"" + value + "\"/></data></cresnet>";	
-			CrestronMobile.sendData(data);	
-			analogJoinValue[id] = parseInt(value/655);						
+		var id = join.substring(1);
+		var v = parseInt(value) / 655;
+
+		if(analogJoinValue[id] !== v){
+			CrestronMobile.sendData("<cresnet><data><i32 id=\"" + id + "\" value=\"" + value + "\"/></data></cresnet>");	
+			analogJoinValue[id] = v;						
 		}		
 	},
 
 	onSerialChanged: function(join, value){	
-		var data;
-		var id;
-		
-		id = join.substring(1);
-		data = "<cresnet><data><string id=\"" + id + "\" value=\"" + value + "\"/></data></cresnet>";	
-		CrestronMobile.sendData(data);			
+		var id = join.substring(1);
+		CrestronMobile.sendData("<cresnet><data><string id=\"" + id + "\" value=\"" + value + "\"/></data></cresnet>");			
 	},
 		
 	onSystemConnectionChanged: function(system, connected, remote){
@@ -91,35 +52,37 @@ var CrestronMobile = {
 			if(connected == 1){
 			//Socket is connected
 			}else if(connected == 0){
+				var i;
 				updateComplete = false;
 				clearInterval(heartbeatTimer);
 				//Digital Joins: Loop through the joins, starting at 1 and add to the joins array
-				for(i=1; i<=4000; i++)
-				{
+				for(i=1; i<=4000; i++) {
 					joins.push({
 						join: "d" + i,
 						value: 0
 					});				
 				}
+				CF.setJoins(joins);
+				joins = [];
 				//Analog Joins: Loop through the joins, starting at 1 and add to the joins array			
-				for(i=1; i<=4000; i++)
-				{
+				for(i=1; i<=4000; i++) {
 					joins.push({
 						join: "a" + i,
 						value: 0
 					});	
 				}
+				CF.setJoins(joins);
+				joins = [];
+
 				//Serial Joins: Loop through the joins, starting at 1 and add to the joins array				
-				for(i=1; i<=4000; i++)
-				{
+				for(i=1; i<=4000; i++) {
 					joins.push({
 						join: "s" + i,
 						value: ""
 					});	
 				}	
+				CF.setJoins(joins);								
 			}
-			//Send the joins array to CF				
-			CF.setJoins(joins);								
 		}		
 	},
 
@@ -131,14 +94,9 @@ var CrestronMobile = {
 		var xml$ = [];
 		var parser = new DOMParser();
 		var xmlDoc;
-		var tempJoin="";
-		var tempValue="";
-		var tempSerial="";
-		var digitals=[];
+		var tempJoin, tempValue, tempSerial;
 		var digitalJoins=[];
-		var serials=[];
 		var serialJoins=[];	
-		var analogs=[];
 		var analogJoins=[];				
 		var temp$="";
 		
@@ -150,13 +108,13 @@ var CrestronMobile = {
 
 				if(xml$[i].indexOf("bool") > 0){
 					//Found Digital(bool) Element, get all instances in message and parse
-					digitals = xmlDoc.getElementsByTagName("bool");
+					var digitals = xmlDoc.getElementsByTagName("bool");
 					
 					for (var d=0; d < digitals.length; d++) {
-						tempJoin = "d" + xmlDoc.getElementsByTagName("bool")[d].getAttributeNode("id").nodeValue;
-						tempValue = xmlDoc.getElementsByTagName("bool")[d].getAttributeNode("value").nodeValue;
+						tempJoin = "d" + digitals[d].getAttributeNode("id").nodeValue;
+						tempValue = digitals[d].getAttributeNode("value").nodeValue;
 						
-						if(tempValue == "true"){
+						if(tempValue === "true"){
 							tempValue = 1;	
 						}else{					
 							tempValue = 0;						
@@ -166,42 +124,32 @@ var CrestronMobile = {
 					};
 				}else if(xml$[i].indexOf("string") > 0){
 					//Found Serial(string) Element, get all instances in message and parse	
-					serials = xmlDoc.getElementsByTagName("string");
+					var serials = xmlDoc.getElementsByTagName("string");
 					
 					for (var s=0; s < serials.length; s++) {
-						tempJoin = "s" + xmlDoc.getElementsByTagName("string")[s].getAttributeNode("id").nodeValue;
+						tempJoin = "s" + serials[s].getAttributeNode("id").nodeValue;
 						
 						if(xml$[i].indexOf("value=") > 0){
-							tempValue = xmlDoc.getElementsByTagName("string")[s].getAttributeNode("value").nodeValue;
+							tempValue = serials[s].getAttributeNode("value").nodeValue;
 						}else if(xml$[i].indexOf("></string>") > 0){
 							tempValue = "";	
 						}else{
-							tempValue = xmlDoc.getElementsByTagName("string")[s].childNodes[0].nodeValue;							
+							tempValue = serials[s].childNodes[0].nodeValue;							
 						}
 
-						if(tempValue.length == 0){
-							tempSerial = "";							
-						}else{
-							tempSerial = tempValue;
-						}
-
-						if(tempSerial.length > 0){
-							tempSerial = CrestronMobile.decode(tempSerial);							
-						}
-
-						serialJoins.push({join: tempJoin, value: tempSerial});
+						serialJoins.push({join: tempJoin, value: CrestronMobile.decode(tempValue)});
 					};
 				}else if(xml$[i].indexOf("i32") > 0){
 					//Found Analog(i32) Element, get all instances in message and parse							
-					analogs = xmlDoc.getElementsByTagName("i32");
+					var analogs = xmlDoc.getElementsByTagName("i32");
 					
 					for (var a=0; a < analogs.length; a++) {
-						tempJoin = "a" + xmlDoc.getElementsByTagName("i32")[a].getAttributeNode("id").nodeValue;
+						tempJoin = "a" + analogs[a].getAttributeNode("id").nodeValue;
 						
 						if(xml$[i].indexOf("value=") > 0){
-							tempValue = xmlDoc.getElementsByTagName("i32")[a].getAttributeNode("value").nodeValue;
+							tempValue = analogs[a].getAttributeNode("value").nodeValue;
 						}else{
-							tempValue = xmlDoc.getElementsByTagName("i32")[a].childNodes[0].nodeValue;							
+							tempValue = analogs[a].childNodes[0].nodeValue;							
 						}						
 						
 						analogJoins.push({join: tempJoin, value: tempValue});
@@ -229,15 +177,14 @@ var CrestronMobile = {
 			}
 		}else if(matchedstring.indexOf("endOfUpdate") > 0){
 			//Update Finished, begin sending Heartbeat Message
-			xmlBuffer += matchedstring;
-			CrestronMobile.parseXML(xmlBuffer);
+			CrestronMobile.parseXML(xmlBuffer + matchedString);
 			xmlBuffer = "";
 			updateComplete = true;				
 			heartbeatTimer = setInterval(CrestronMobile.sendHeartBeat, 5000);
 		}else{
 			if(updateComplete == true){
 				CrestronMobile.parseXML(matchedstring);	
-			}else if(updateComplete == false){
+			}else{
 				xmlBuffer+=matchedstring;				
 			}			
 		}

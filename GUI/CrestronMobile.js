@@ -14,7 +14,7 @@ var CrestronMobile = {
 	
 	//Function to decode UTF text for serial strings
 	decode : function (utftext) {
-		return decodeURIComponent(escape(utfText));
+		return decodeURIComponent(escape(utftext));
 	},
 	
 	onButtonPressed: function(join, value, tokens){
@@ -114,7 +114,7 @@ var CrestronMobile = {
 						tempJoin = "d" + digitals[d].getAttributeNode("id").nodeValue;
 						tempValue = digitals[d].getAttributeNode("value").nodeValue;
 						
-						if(tempValue === "true"){
+						if(tempValue == "true"){
 							tempValue = 1;	
 						}else{					
 							tempValue = 0;						
@@ -177,7 +177,7 @@ var CrestronMobile = {
 			}
 		}else if(matchedstring.indexOf("endOfUpdate") > 0){
 			//Update Finished, begin sending Heartbeat Message
-			CrestronMobile.parseXML(xmlBuffer + matchedString);
+			CrestronMobile.parseXML(xmlBuffer + matchedstring);
 			xmlBuffer = "";
 			updateComplete = true;				
 			heartbeatTimer = setInterval(CrestronMobile.sendHeartBeat, 5000);

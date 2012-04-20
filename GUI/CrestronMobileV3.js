@@ -14,6 +14,7 @@ var CrestronMobile = {
 	systemName: "",
 	initialized : false,
 	heartbeatTimer : 0,
+	heartbeatCount : 0,
 	lastDataReceived : 0,
 	updateComplete : false,
 	digitalJoinRepeat : [],
@@ -28,7 +29,6 @@ var CrestronMobile = {
 	gJoinMax : 0,
 	password : "1234",
 	loggedIn : false,
-	connected : false,
 	orientation : "2",
 	connectionTimer : 0,
 	loadingMessageVisible : false,
@@ -98,7 +98,11 @@ var CrestronMobile = {
 			CF.watch(CF.NetworkStatusChangeEvent, CrestronMobile.onNetworkStatusChange, false);
 
 			CrestronMobile.heartbeatTimer = setInterval(function() {
-				CrestronMobile.sendHeartBeat();
+				if(CrestronMobile.updateComplete){
+					CrestronMobile.sendHeartBeat();					
+				} else if(CrestronMobile.loggedIn == false){
+					CrestronMobile.connection("reset");
+				}
 			}, 2000);
 		});
 	},
@@ -125,9 +129,6 @@ var CrestronMobile = {
 	},
 	sendData : function(data) {
 		CF.send("CrestronMobile", data, CF.UTF8);
-		if(CrestronMobile.connected) {
-
-		}
 	},
 	onGUIPreloadComplete : function() {
 		if (CrestronMobile.debug) { CF.log("CrestronMobile: GUI preload complete"); }
@@ -143,23 +144,15 @@ var CrestronMobile = {
 	},
 	onGUISuspended : function() {
 		if (CrestronMobile.debug) { CF.log("CrestronMobile: GUI suspended"); }
+		CrestronMobile.heartbeatCount = 0;	
 	},
 	onGUIResumed : function() {
 		if (CrestronMobile.debug) { CF.log("CrestronMobile: GUI resumed"); }
+		CrestronMobile.heartbeatCount = 0;
+		setTimeout(function(){if(CrestronMobile.loggedIn === false){CrestronMobile.connection("reset");}}, 3000);
 	},
 	onSystemConnectionChanged : function(system, connected, remote) {
 		if (CrestronMobile.debug) { CF.log("CrestronMobile: system connected="+connected+", remote="+remote); }
-		if (connected) {
-			CrestronMobile.updateComplete = false;
-			CrestronMobile.connected = true;
-		} else {
-			CrestronMobile.updateComplete = false;
-			if (remote === null) {
-				CrestronMobile.connected = false;
-			} else {
-				//CrestronMobile.connection("reset");
-			}
-		}
 	},
 	onOrientationChange : function(pageName, newOrientation) {
 		if (CrestronMobile.debug) { CF.log("CrestronMobile: orientation changed, pageName="+pageName+", newOrientation="+newOrientation); }
@@ -219,10 +212,20 @@ var CrestronMobile = {
 	sendHeartBeat : function() {
 		if (CrestronMobile.debug) { CF.log("CrestronMobile: send heartbeat updateComplete="+CrestronMobile.updateComplete); }
 		if(CrestronMobile.updateComplete === true) {
+			/*
 			if ((Date.now() - CrestronMobile.lastDataReceived) > 5000) {
 				if (CrestronMobile.debug) { CF.log("CrestronMobile: no response from Crestron for more than 5 seconds, resetting the connection"); }
 				CrestronMobile.connection("reset");
 			} else {
+				CrestronMobile.sendData("<cresnet><control><comm><heartbeatRequest></heartbeatRequest></comm></control></cresnet>");
+			}
+			*/
+			if (CrestronMobile.heartbeatCount > 2) {
+				if (CrestronMobile.debug) { CF.log("CrestronMobile: no response from Crestron for more than 5 seconds, resetting the connection"); }
+				CrestronMobile.heartbeatCount = 0;
+				CrestronMobile.connection("reset");
+			} else {
+				CrestronMobile.heartbeatCount++;
 				CrestronMobile.sendData("<cresnet><control><comm><heartbeatRequest></heartbeatRequest></comm></control></cresnet>");
 			}
 		}
@@ -234,16 +237,19 @@ var CrestronMobile = {
 	connection : function(type) {
 		if (CrestronMobile.debug) { CF.log("CrestronMobile: connection "+type); }
 		if(type === "reset") {
-			CrestronMobile.setLoadingMessageVisible(false);
+			CrestronMobile.heartbeatCount = 0;
 			CrestronMobile.updateComplete = false;
+			CrestronMobile.loggedIn = false;
 			CF.setSystemProperties("CrestronMobile", { enabled : false });
 			setTimeout(function() {
 				CF.setSystemProperties("CrestronMobile", { enabled : true });
 				CrestronMobile.setLoadingMessageVisible(true);
 			}, 500);
 		} else if(type === "disconnect") {
+			CrestronMobile.heartbeatCount = 0;
 			CrestronMobile.setLoadingMessageVisible(false);
 			CrestronMobile.updateComplete = false;
+			CrestronMobile.loggedIn = false;
 			CF.setSystemProperties("CrestronMobile", { enabled : false });
 		} else if(type === "connect") {
 			CF.setSystemProperties("CrestronMobile", { enabled : true });
@@ -321,10 +327,11 @@ var CrestronMobile = {
 		}
 		//Update Interface
 		if(CrestronMobile.initialized && updates.length > 0) {
-			CF.setJoins(updates, false);
+			CF.setJoins(updates, true);
 		}
 	},
 	processFeedback : function(feedbackname, matchedstring) {
+		CrestronMobile.heartbeatCount = 0;
 		CrestronMobile.lastDataReceived = Date.now();
 		if(matchedstring.indexOf("<programReady><status>") >= 0) {
 			if (CrestronMobile.debug) { CF.log("CrestronMobile: got program ready status "+matchedstring); }

@@ -189,7 +189,7 @@ var CrestronMobile = {
 		CrestronMobile.sendData(data);
 	},
 	onAnalogChanged : function(join, value) {
-		if(CrestronMobile.initialized === true) {
+		if(CrestronMobile.initialized) {
 			var id = join.substring(1);
 			var data = "<cresnet><data><i32 id=\"" + id + "\" value=\"" + value + "\"/></data></cresnet>";
 			CrestronMobile.sendData(data);
@@ -253,7 +253,6 @@ var CrestronMobile = {
 		if(!CrestronMobile.initialized && (xml.indexOf("string") >= 0 && xml.indexOf("value=\"\"") >= 0)) {
 			return;
 		}
-
 		var parser = new DOMParser();
 		xml = xml.substring(xml.indexOf("<?xml"));
 		var tree = parser.parseFromString(xml, "text/xml");
@@ -348,7 +347,7 @@ var CrestronMobile = {
 		} else if(matchedstring.indexOf("<connectResponse>") >= 0) {
 			//Found Connect Response Message, validate response
 			if (CrestronMobile.debug) { CF.log("CrestronMobile: got connect response "+matchedstring); }
-			if(matchedstring.indexOf("<code>0</code>") > 0) {
+			if (matchedstring.indexOf("<code>0</code>") > 0) {
 				//Connection is good, send Update Request Message to system
 				CrestronMobile.loggedIn = true;
 				CF.send("CrestronMobile", "<cresnet><data><updateRequest></updateRequest></data></cresnet>");
@@ -369,16 +368,12 @@ var CrestronMobile = {
 			CrestronMobile.sendData("<cresnet><data><i32 id=\"17259\" value=\"" + CrestronMobile.orientation + "\"/></data></cresnet>");
 		} else if(matchedstring.indexOf("</heartbeatResponse>") >= 0) {
 			//Found Hearbeat Response Message
-			//if (CrestronMobile.debug) { CF.log("CrestronMobile: got heartbeat response "+matchedstring); }
-			if(CrestronMobile.loadingMessageVisible === true) {
+			if (CrestronMobile.debug) { CF.log("CrestronMobile: got heartbeat response "+matchedstring); }
+			if(CrestronMobile.loadingMessageVisible) {
 				CrestronMobile.setLoadingMessageVisible(false);
 			}
-			if(CrestronMobile.updateComplete === false) {
-				CrestronMobile.updateComplete = true;
-			}
-			if(CrestronMobile.initialized === false) {
-				CrestronMobile.initialized = true;
-			}
+			CrestronMobile.updateComplete = true;
+			CrestronMobile.initialized = true;
 		} else if(matchedstring.indexOf("<heartbeatRequest>") >= 0) {
 			if (CrestronMobile.debug) { CF.log("CrestronMobile: got heartbeat request "+matchedstring); }
 			CrestronMobile.setLoadingMessageVisible(false);

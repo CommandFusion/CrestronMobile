@@ -1,24 +1,29 @@
 /* Crestron Mobile Interface
  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
- AUTHOR:	Greg Soli, Audio Advice
+ AUTHORS:	Greg Soli, Audio Advice - Florent Pillet, CommandFusion
  CONTACT:	greg.soli@audioadvice.com
- VERSION:	v 3.0 beta
+ VERSION:	v 3.0-alpha
 
  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
  */
 
 var CrestronMobile = {
-	/*
-	 * Global Variable Assignments
-	 */
+	// Possible states (constants) of a CrestronMobile instance
+	NOT_INITIALIZED: 0,
+	CONNECTING: 1,
+	CONNECTED: 2,
+	RESETTING: 3,
+	DISCONNECTED: 4,
+
+	// Global Variable Assignments
 	debug: true,			// set to true to add CrestronMobile's own debugging messages to the log
 	preloadComplete: false,
 	instances: [],			// an array holding one module instance for each remote Crestron system
 
-	/**
-	 * Module setup function
-	 */
+	//
+	// Module setup function
+	//
 	setup:function () {
 		if (CrestronMobile.debug) {
 			CF.log("CrestronMobile: setup()");
@@ -35,75 +40,8 @@ var CrestronMobile = {
 
 		CF.getJoin(CF.GlobalTokensJoin, function (j, v, tokens) {
 			// Create a new instance (for now only one system)
-			var self = CrestronMobile.createInstance("CrestronMobile");
-
-			// Setup base variables
-			self.aJoinMax = parseInt(tokens["[aJoinMax]"], 10) || 200;
-			self.sJoinMax = parseInt(tokens["[sJoinMax]"], 10) || 200;
-			self.dJoinMax = parseInt(tokens["[dJoinMax]"], 10) || 1000;
-			self.gJoinMin = parseInt(tokens["[gJoinMin]"], 10) || 1001;
-			self.gJoinMax = parseInt(tokens["[gJoinMax]"], 10) || 1050;
-			self.password = tokens["[cmPassword]"] || "1234";
-
-			var i, digitalJoins = [], analogJoins = [], serialJoins = [], gestureJoins = [];
-			for (i = 1; i <= self.dJoinMax; i++) {
-				j = "d" + i;
-				digitalJoins.push(j);
-				self.dJoin.push({ join:j, value:0 });
-			}
-			for (i = 1; i <= self.aJoinMax; i++) {
-				j = "a" + i;
-				analogJoins.push(j);
-				self.aJoin.push({ join:j, value:0 });
-			}
-			for (i = 1; i <= self.sJoinMax; i++) {
-				j = "s" + i;
-				serialJoins.push(j);
-				self.sJoin.push({ join:j, value:"" });
-			}
-			for (i = self.gJoinMin; i <= self.gJoinMax; i++) {
-				gestureJoins.push("d" + i);
-			}
-
-			if (CrestronMobile.debug) {
-				CF.log("CrestronMobile: dJoinMax=" + self.dJoinMax + ", aJoinMax=" + self.aJoinMax + ", sJoinMax=" + self.sJoinMax);
-			}
-
-			// Disable system if preloading is not complete yet
-			if (!CrestronMobile.preloadComplete) {
-				self.connection("disconnect");
-			}
-
-			// Watch events. For each event, we define a lamba function whose sole purpose is to call
-			// into the instance's callback, ensuring that `this' is properly set when the callback executes
-			CF.watch(CF.NetworkStatusChangeEvent, function(networkStatus) { self.onNetworkStatusChange(networkStatus); });
-			CF.watch(CF.ConnectionStatusChangeEvent, self.systemName, function(system,connected,remote) { self.onSystemConnectionChanged(system,connected,remote); });
-			CF.watch(CF.FeedbackMatchedEvent, self.systemName, "Feedback", function(feedback,match) { self.processFeedback(feedback,match); });
-
-			CF.watch(CF.ObjectPressedEvent, digitalJoins, function(j,v,t) { self.onButtonPressed(j,v,t); });
-			CF.watch(CF.ObjectReleasedEvent, digitalJoins, function(j,v,t) { self.onButtonReleased(j,v,t); });
-			CF.watch(CF.ObjectDraggedEvent, analogJoins, function(j,v,t) { self.onAnalogChanged(j,v,t); });
-
-			CF.watch(CF.JoinChangeEvent, serialJoins, function(j,v,t) { self.onSerialChanged(j,v,t); });
-			CF.watch(CF.JoinChangeEvent, gestureJoins, function(j,v,t) { self.onDigitalChanged(j,v,t); });
-
-			CF.watch(CF.OrientationChangeEvent, function(page,orientation) { self.onOrientationChange(page,orientation); }, true);
-
-			CF.watch(CF.GUISuspendedEvent, function() { self.onGUISuspended(); });
-			CF.watch(CF.GUIResumedEvent, function() { self.onGUIResumed(); });
-
-			// Setup heartneat timer
-			self.heartbeatTimer = setInterval(function () {
-				if (self.updateComplete) {
-					self.sendHeartBeat();
-				} else if (++self.heartbeatCount > 5 && !self.loggedIn && self.connectionResetTimeout === 0) {
-					if (CrestronMobile.debug) {
-						CF.log("CrestronMobile: heartbeatTimer fired, not loggedIn, time to reset connection (heartbeatCount=" + self.heartbeatCount + ")");
-					}
-					self.heartbeatCount = 0;
-					self.connection("reset");
-				}
-			}, 2000);
+			var instance = CrestronMobile.createInstance("CrestronMobile", tokens);
+			CrestronMobile.instances.push(instance);
 		});
 	},
 
@@ -115,16 +53,20 @@ var CrestronMobile = {
 	},
 
 	/**
-	 * Create and return a new module instance
-	 * @param system	the name of the extern system to connect to, as defined in the GUI
-	 */
-	createInstance: function(system) {
+	* Create and return a new module instance
+	* @param system		the name of the extern system to connect to, as defined in the GUI
+	* @param globalTokens	the GUI's global tokens from which we extract various parameters
+	*/
+	createInstance: function(system, globalTokens) {
 		/*
-		 * Properties of one CrestronMobile instance
-		 */
+		* Properties of one CrestronMobile instance
+		*/
 		var instance = {
+			state: CrestronMobile.NOT_INITIALIZED,
 			initialized:false,
+			hasNetwork:false,
 			systemName:system,
+			systemConnected:false,
 			aJoinMax:0,
 			dJoinMax:0,
 			sJoinMax:0,
@@ -151,6 +93,79 @@ var CrestronMobile = {
 			connectionResetTimeout:0,
 			loadingMessageVisible:false,
 			loadingMessageSubpage:"d4001",
+
+			initialize: function(globalTokens) {
+				// Setup base variables
+				this.aJoinMax = parseInt(globalTokens["[aJoinMax]"], 10) || 200;
+				this.sJoinMax = parseInt(globalTokens["[sJoinMax]"], 10) || 200;
+				this.dJoinMax = parseInt(globalTokens["[dJoinMax]"], 10) || 1000;
+				this.gJoinMin = parseInt(globalTokens["[gJoinMin]"], 10) || 1001;
+				this.gJoinMax = parseInt(globalTokens["[gJoinMax]"], 10) || 1050;
+				this.password = globalTokens["[cmPassword]"] || "1234";
+
+				var i, j, n, digitalJoins = [], analogJoins = [], serialJoins = [], gestureJoins = [];
+				for (i = 1, n = this.dJoinMax; i <= n; i++) {
+					j = "d" + i;
+					digitalJoins.push(j);
+					this.dJoin.push({ join:j, value:0 });
+				}
+				for (i = 1, n = this.aJoinMax; i <= n; i++) {
+					j = "a" + i;
+					analogJoins.push(j);
+					this.aJoin.push({ join:j, value:0 });
+				}
+				for (i = 1, n = this.sJoinMax; i <= n; i++) {
+					j = "s" + i;
+					serialJoins.push(j);
+					this.sJoin.push({ join:j, value:"" });
+				}
+				for (i = this.gJoinMin, n = this.gJoinMax; i <= n; i++) {
+					gestureJoins.push("d" + i);
+				}
+
+				if (CrestronMobile.debug) {
+					CF.log("CrestronMobile: dJoinMax=" + this.dJoinMax + ", aJoinMax=" + this.aJoinMax + ", sJoinMax=" + this.sJoinMax);
+				}
+
+				// Disable system if preloading is not complete yet
+				if (!CrestronMobile.preloadComplete) {
+					this.connection("disconnect");
+				}
+
+				// Watch events. For each event, we define a lamba function whose sole purpose is to call
+				// into the instance's callback, ensuring that `this' is properly set when the callback executes
+				var self = this;
+				CF.watch(CF.NetworkStatusChangeEvent, function(networkStatus) { self.onNetworkStatusChange(networkStatus); }, true);
+				CF.watch(CF.ConnectionStatusChangeEvent, self.systemName, function(system,connected,remote) { self.onSystemConnectionChanged(system,connected,remote); });
+				CF.watch(CF.FeedbackMatchedEvent, self.systemName, "Feedback", function(feedback,match) { self.processFeedback(feedback,match); });
+
+				CF.watch(CF.ObjectPressedEvent, digitalJoins, function(j,v,t) { self.onButtonPressed(j,v,t); });
+				CF.watch(CF.ObjectReleasedEvent, digitalJoins, function(j,v,t) { self.onButtonReleased(j,v,t); });
+				CF.watch(CF.ObjectDraggedEvent, analogJoins, function(j,v,t) { self.onAnalogChanged(j,v,t); });
+
+				CF.watch(CF.JoinChangeEvent, serialJoins, function(j,v,t) { self.onSerialChanged(j,v,t); });
+				CF.watch(CF.JoinChangeEvent, gestureJoins, function(j,v,t) { self.onDigitalChanged(j,v,t); });
+
+				CF.watch(CF.OrientationChangeEvent, function(page,orientation) { self.onOrientationChange(page,orientation); }, true);
+
+				CF.watch(CF.GUISuspendedEvent, function() { self.onGUISuspended(); });
+				CF.watch(CF.GUIResumedEvent, function() { self.onGUIResumed(); });
+
+				// Setup heartneat timer
+				this.heartbeatTimer = setInterval(function () {
+					if (!self.guiSuspended) {
+						if (self.updateComplete) {
+							self.sendHeartBeat();
+						} else if (self.hasNetwork && ++self.heartbeatCount > 5 && !self.loggedIn && self.connectionResetTimeout === 0) {
+							if (CrestronMobile.debug) {
+								CF.log("CrestronMobile: heartbeatTimer fired, not loggedIn, time to reset connection (heartbeatCount=" + self.heartbeatCount + ")");
+							}
+							self.heartbeatCount = 0;
+							self.connection("reset");
+						}
+					}
+				}, 2000);
+			},
 
 			resetRunningJoins: function() {
 				// Reset the known values of joins
@@ -190,10 +205,13 @@ var CrestronMobile = {
 			// ------------------------------------------------------------------
 			onNetworkStatusChange:function (networkStatus) {
 				if (CrestronMobile.debug) {
-					CF.log("CrestronMobile: networkStatus=" + networkStatus);
+					CF.log("CrestronMobile: networkStatus hasNetwork=" + networkStatus.hasNetwork);
 				}
+				this.hasNetwork = networkStatus.hasNetwork;
 				if (networkStatus.hasNetwork) {
-					this.connection("connect");
+					if (CrestronMobile.preloadComplete) {
+						this.connection("connect");
+					}
 				} else {
 					this.connection("disconnect");
 				}
@@ -203,6 +221,7 @@ var CrestronMobile = {
 				if (CrestronMobile.debug) {
 					CF.log("CrestronMobile: system connected=" + connected + ", remote=" + remote);
 				}
+				this.systemConnected = connected;
 				if (connected) {
 					// reset heartbeatCount to give enough time for initial exchange
 					this.heartbeatCount = 0;
@@ -227,20 +246,27 @@ var CrestronMobile = {
 
 				if (type === "reset") {
 					// Reset the connection: disconnect immediately then reconnect a bit later
-					this.clearConnectionResetTimeout();
-					this.heartbeatCount = 0;
-					this.updateComplete = false;
-					this.loggedIn = false;
+					if (this.state !== CrestronMobile.RESETTING) {
+						this.clearConnectionResetTimeout();
+						this.state = CrestronMobile.RESETTING;
+						this.heartbeatCount = 0;
+						this.updateComplete = false;
+						this.loggedIn = false;
 
-					CF.setSystemProperties(this.systemName, { enabled:false });
+						CF.setSystemProperties(this.systemName, { enabled:false });
 
-					var self = this;
-					this.connectionResetTimeout = setTimeout(function () {
-						self.connectionResetTimeout = 0;
-						self.heartbeatCount = 0;			// prevent timer from reseting us again too early
-						CF.setSystemProperties(self.systemName, { enabled:true });
-						self.setLoadingMessageVisible(true);
-					}, 500);
+						var self = this;
+						this.connectionResetTimeout = setTimeout(function () {
+							if (CrestronMobile.debug) {
+								CF.log("CrestronMobile: connectionResetTimeout expired, re-enabling system");
+							}
+							self.connectionResetTimeout = 0;
+							self.heartbeatCount = 0;			// prevent timer from reseting us again too early
+							CF.setSystemProperties(self.systemName, { enabled:true });
+							self.state = CrestronMobile.CONNECTING;
+							self.setLoadingMessageVisible(true);
+						}, 500);
+					}
 
 				} else if (type === "disconnect") {
 					this.clearConnectionResetTimeout();
@@ -248,11 +274,17 @@ var CrestronMobile = {
 					this.setLoadingMessageVisible(false);
 					this.updateComplete = false;
 					this.loggedIn = false;
+
 					CF.setSystemProperties(this.systemName, { enabled:false });
+
+					this.state = CrestronMobile.DISCONNECTED;
 
 				} else if (type === "connect") {
 					// this won't have any impact if system is not already connecting
 					CF.setSystemProperties(this.systemName, { enabled:true });
+					if (this.state === CrestronMobile.NOT_INITIALIZED || this.state === CrestronMobile.DISCONNECTED) {
+						this.state = CrestronMobile.CONNECTING;
+					}
 				}
 			},
 
@@ -273,15 +305,7 @@ var CrestronMobile = {
 				}
 				this.guiSuspended = false;
 				this.heartbeatCount = 0;
-				if (this.connectionResetTimeout !== 0) {
-					clearTimeout(this.connectionResetTimeout);
-				}
-				var self = this;
-				this.connectionResetTimeout = setTimeout(function () {
-					if (!self.loggedIn) {
-						self.connection("reset");
-					}
-				}, 3000);
+				this.clearConnectionResetTimeout();
 			},
 
 			onOrientationChange:function (pageName, newOrientation) {
@@ -326,15 +350,15 @@ var CrestronMobile = {
 			onSerialChanged:function (join, value) {
 				//Not Currently Supported By Crestron
 				/*
-				 var data;
-				 var id;
-				 if (this.initialized === true) {
-				 id = join.substring(1);
+				var data;
+				var id;
+				if (this.initialized === true) {
+				id = join.substring(1);
 
-				 data = "<cresnet><data  som=\"true\" eom=\"true\"><string id=\"" + id + "\" value=\"" + value + "\"/></data></cresnet>";
-				 this.sendData(data);
-				 }
-				 */
+				data = "<cresnet><data  som=\"true\" eom=\"true\"><string id=\"" + id + "\" value=\"" + value + "\"/></data></cresnet>";
+				this.sendData(data);
+				}
+				*/
 			},
 
 			onDigitalChanged:function (join, value) {
@@ -348,19 +372,8 @@ var CrestronMobile = {
 			// Heartbeat management
 			// ------------------------------------------------------------------
 			sendHeartBeat:function () {
-				if (CrestronMobile.debug) {
-					CF.log("CrestronMobile: send heartbeat updateComplete=" + this.updateComplete);
-				}
 				if (this.updateComplete) {
-					/*
-					 if ((Date.now() - this.lastDataReceived) > 5000) {
-					 if (CrestronMobile.debug) { CF.log("CrestronMobile: no response from Crestron for more than 5 seconds, resetting the connection"); }
-					 this.connection("reset");
-					 } else {
-					 this.sendData("<cresnet><control><comm><heartbeatRequest></heartbeatRequest></comm></control></cresnet>");
-					 }
-					 */
-					if (this.heartbeatCount > 2) {
+					if (this.heartbeatCount++ > 2) {
 						// After a few seconds without any answer, reset the connection only if another reset
 						// is not already in progress
 						if (this.connectionResetTimeout === 0) {
@@ -372,7 +385,6 @@ var CrestronMobile = {
 						}
 					} else {
 						// Send heartbeat message to Crestron
-						this.heartbeatCount++;
 						this.sendData("<cresnet><control><comm><heartbeatRequest></heartbeatRequest></comm></control></cresnet>");
 					}
 				}
@@ -463,22 +475,17 @@ var CrestronMobile = {
 					if (CrestronMobile.debug) {
 						CF.log("CrestronMobile: got program ready status " + matchedstring);
 					}
-					if (this.connectionTimer > 0) {
-						clearTimeout(this.connectionTimer);
-					}
 					//Found Program Ready Message, send Connect Request to system
+					this.clearConnectionResetTimeout();
 					this.setLoadingMessageVisible(true);
 					this.updateComplete = false;
 					this.initialized = false;
 					this.loggedIn = false;
+					this.heartbeatCount = 0;		// reset heartbeatCount: this gives us 10s to log in
 					this.resetRunningJoins();
-					var self = this;
-					this.connectionTimer = setTimeout(function () {
-						if (!self.updateComplete) {
-							self.connection("reset");
-						}
-					}, 10000);
+
 					CF.send(this.systemName, "<cresnet><control><comm><connectRequest><passcode>" + this.password + "</passcode><mode isUnicodeSupported=\"true\"></mode></connectRequest></comm></control></cresnet>");
+
 				} else if (matchedstring.indexOf("<connectResponse>") >= 0) {
 					//Found Connect Response Message, validate response
 					if (CrestronMobile.debug) {
@@ -507,9 +514,6 @@ var CrestronMobile = {
 					this.sendData("<cresnet><data><i32 id=\"17259\" value=\"" + this.orientation + "\"/></data></cresnet>");
 				} else if (matchedstring.indexOf("</heartbeatResponse>") >= 0) {
 					//Found Hearbeat Response Message
-					if (CrestronMobile.debug) {
-						CF.log("CrestronMobile: got heartbeat response " + matchedstring);
-					}
 					this.setLoadingMessageVisible(false);
 					this.updateComplete = true;
 					this.initialized = true;
@@ -534,12 +538,15 @@ var CrestronMobile = {
 				}
 			}
 		};
-		CrestronMobile.instances.push(instance);
+
+		instance.initialize(globalTokens);
 		return instance;
 	}
 };
 
 CF.modules.push({
-	name:"CrestronMobile v3.0-alpha",
-	setup:CrestronMobile.setup
+	name:"CrestronMobile",			// the name of this module
+	setup:CrestronMobile.setup,		// the setup function to call before CF.userMain
+	object:CrestronMobile,			// the `this' object for the setup function
+	version:"v3.0-alpha"			// the version of this module
 });

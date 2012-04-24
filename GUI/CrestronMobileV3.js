@@ -387,21 +387,30 @@ var CrestronMobile = {
 			},
 
 			onButtonPressed: function(join) {
-				var id = join.substring(1);
-				var data = "<cresnet><data><bool id=\"" + id + "\" value=\"true\" repeating=\"true\"/></data></cresnet>";
-				this.sendData(data);
-				var timer = this.buttonRepeat[id];
-				if (timer !== 0) {
-					clearInterval(timer);
-					this.buttonRepeat[id] = 0;
+				this.dJoin[join] = 1;
+				if (this.initialized) {
+					var id = join.substring(1);
+					var data = "<cresnet><data><bool id=\"" + id + "\" value=\"true\" repeating=\"true\"/></data></cresnet>";
+					this.sendData(data);
+					var timer = this.buttonRepeat[id];
+					if (timer !== 0) {
+						clearInterval(timer);
+						this.buttonRepeat[id] = 0;
+					}
+					var self = this;
+					this.buttonRepeat[id] = setInterval(function () {
+						if (self.initialized) {
+							self.sendData(data);
+						} else {
+							clearInterval(self.buttonRepeat[id]);
+							self.buttonRepeat[id] = 0;
+						}
+					}, 500);
 				}
-				var self = this;
-				this.buttonRepeat[id] = setInterval(function () {
-					self.sendData(data);
-				}, 500);
 			},
 
 			onButtonReleased: function(join) {
+				this.dJoin[join] = 0;
 				var id = join.substring(1);
 				if (this.buttonRepeat[id] !== 0) {
 					clearInterval(this.buttonRepeat[id]);

@@ -5,8 +5,27 @@
  CONTACT:	greg.soli@audioadvice.com
  VERSION:	v 3.0-alpha
 
+ TODO LIST:
+ - Replace join arrays by objects whose properties are the join strings themselves. Each Crestron system can then
+   be configured to target only a certain range or list of joins
+ - Autoconfigure the joins to support by looking at the output of CF.getGuiProperties(), and only defined those joins
+   in the arrays
  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
  */
+
+// Test for autoconfig
+var CrestronMobileConfig_CrestronMobile = {
+	// A list of pages for which we are monitoring all joins. A page name can be a regular expression
+	// In a given page, joins of all elements (including elements in referenced subpages) will be processed
+	pages: ["Startup"],
+
+	// An additional list of joins we also want to handle, even though they don't match objects in defined pages
+	joins: [],
+
+	// The password to use to connect to this Crestron processor
+	password: "1234"
+
+};
 
 var CrestronMobile = {
 	// Possible states (constants) of a CrestronMobile instance
@@ -38,10 +57,43 @@ var CrestronMobile = {
 		// Global watch to enable all CrestronMobile instances when GUI preloading is complete
 		CF.watch(CF.PreloadingCompleteEvent, this.onGUIPreloadComplete);
 
-		CF.getJoin(CF.GlobalTokensJoin, function (j, v, tokens) {
-			// Create a new instance (for now only one system)
-			var instance = CrestronMobile.createInstance("CrestronMobile", tokens);
-			CrestronMobile.instances.push(instance);
+		// Detect autoconfiguration. Skip system with empty name (main control system)
+		var autoconfigFound = false, associatedSystems = {};
+		for (var systemName in CF.systems) {
+			if (systemName !== "") {
+				var autoconfigName = "CrestronMobileConfig_" + systemName;
+				if (window[autoconfigName] !== undefined) {
+					autoconfigFound = true;
+					associatedSystems[systemName] = window[autoconfigName];
+				}
+			}
+		}
+		if (!autoconfigFound && CF.systems["CrestronMobile"] !== undefined) {
+			// No auto-configuration found: use old-style compatibility, generate a fake
+			// autoconfig that uses the "CrestronMobile" system and monitors all the pages
+			associatedSystems["CrestronMobile"] = {
+				pages: ["*"],
+				joins: [],
+				password: null
+			}
+		}
+
+		// First get the global tokens, then the GUI description, then we can start
+		// creating instances and link them to the watched joins
+		CF.getJoin(CF.GlobalTokensJoin, function (j, v, globalTokens) {
+			// compatibility with earlier versions: use the password in the global tokens
+			var compatibilityConfig = associatedSystems["CrestronMobile"];
+			if (compatibilityConfig !== undefined && compatibilityConfig.password === null) {
+				associatedSystems["CrestronMobile"].password = globalTokens["cmPassword"] || "1234";
+			}
+			// Obtain the GUI description and perform instantiation of each CrestronMobile instance in the callback
+			CF.getGuiDescription(function(guiDescription) {
+				for (var sys in associatedSystems) {
+					// Create a new instance
+					var instance = CrestronMobile.createInstance(sys, associatedSystems[sys], guiDescription);
+					CrestronMobile.instances.push(instance);
+				}
+			});
 		});
 	},
 
@@ -54,77 +106,103 @@ var CrestronMobile = {
 
 	/**
 	* Create and return a new module instance
-	* @param system		the name of the extern system to connect to, as defined in the GUI
-	* @param globalTokens	the GUI's global tokens from which we extract various parameters
+	* @param name		the name of the extern system to connect to, as defined in the GUI
+	* @param config		the configuration object we use to setup watches
+	* @param guiDescription the result of CF.getGuiDescription()
 	*/
-	createInstance: function(system, globalTokens) {
-		/*
-		* Properties of one CrestronMobile instance
-		*/
+	createInstance: function(name, config, guiDescription) {
+
 		var instance = {
+			systemName: name,
+			systemConnected: false,
+			password: config.password,
+
 			state: CrestronMobile.NOT_INITIALIZED,
-			initialized:false,
-			hasNetwork:false,
-			systemName:system,
-			systemConnected:false,
-			aJoinMax:0,
-			dJoinMax:0,
-			sJoinMax:0,
-			gJoinMin:0,
-			gJoinMax:0,
-			password:"1234",
-
-			heartbeatTimer:0,
-			heartbeatCount:0,
-			guiSuspended:false,
-			lastDataReceived:0,
-
-			updateComplete:false,
-
-			digitalJoinRepeat:[],
-			analogJoinValue:[],
-
-			aJoin:[],
-			dJoin:[],
-			sJoin:[],
-
 			loggedIn:false,
+			updateComplete: false,
+			initialized: false,
+			hasNetwork: false,
+			guiSuspended: false,
 			orientation:"2",
+
+			heartbeatTimer: 0,
+			heartbeatCount: 0,
+			lastDataReceived: 0,
+
 			connectionResetTimeout:0,
 			loadingMessageVisible:false,
 			loadingMessageSubpage:"d4001",
 
-			initialize: function(globalTokens) {
-				// Setup base variables
-				this.aJoinMax = parseInt(globalTokens["[aJoinMax]"], 10) || 200;
-				this.sJoinMax = parseInt(globalTokens["[sJoinMax]"], 10) || 200;
-				this.dJoinMax = parseInt(globalTokens["[dJoinMax]"], 10) || 1000;
-				this.gJoinMin = parseInt(globalTokens["[gJoinMin]"], 10) || 1001;
-				this.gJoinMax = parseInt(globalTokens["[gJoinMax]"], 10) || 1050;
-				this.password = globalTokens["[cmPassword]"] || "1234";
+			aJoin: {},
+			dJoin: {},
+			sJoin: {},
+			buttonRepeat: {},
 
-				var i, j, n, digitalJoins = [], analogJoins = [], serialJoins = [], gestureJoins = [];
-				for (i = 1, n = this.dJoinMax; i <= n; i++) {
-					j = "d" + i;
-					digitalJoins.push(j);
-					this.dJoin.push({ join:j, value:0 });
+			monitorGuiObjects: function(guiObjects) {
+				if (guiObjects !== null) {
+					var i, n;
+					for (i = 0, n = guiObjects.length; i < n; i++) {
+						var guiObj = guiObjects[i];
+						var type = guiObj.join.charAt(0);
+						if (type === 'd') {
+							this.dJoin[guiObj.join] = 0;
+							if (guiObj.type === "Button") {
+								this.buttonRepeat[guiObj.join] = 0;
+							}
+						} else if (type === 'a') {
+							this.aJoin[guiObj.join] = 0;
+						} else if (type === 's') {
+							this.sJoin[guiObj.join] = "";
+						}
+					}
 				}
-				for (i = 1, n = this.aJoinMax; i <= n; i++) {
-					j = "a" + i;
+			},
+
+			initialize: function(config, guiDescription) {
+				var i, j, n, c;
+				var guiPages = guiDescription.pages, numGuiPages = guiPages.length, page;
+				var buttonJoins = [], analogJoins = [], serialJoins = [], digitalJoins = [];
+
+				// gather the complete set of joins to monitor
+				for (i = 0, n = config.pages.length; i < n; i++) {
+					var regex = new RegExp(config.pages[i]);
+					for (j = 0; j < numGuiPages; j++) {
+						page = guiPages[j];
+						if (page.name.match(regex)) {
+							// add all joins of this page
+							this.dJoin[page.join] = 0;
+							this.monitorGuiObjects(page.portraitObjects);
+							this.monitorGuiObjects(page.landscapeObjects);
+						}
+					}
+				}
+				// add optional joins defined in config.joins. Note that any buttons added here won't
+				// be observed as repeating buttons, but simply as on/off digital joins
+				if (config.joins !== undefined) {
+					for (i = 0, n = config.joins.length; i < n; i++) {
+						j = config.joins[i];
+						c = j.charAt(0);
+						if (c === 'd') {
+							digitalJoins.push(j);
+						} else if (c === 'a') {
+							analogJoins.push(j);
+						} else if (c === 's') {
+							serialJoins.push(j);
+						}
+					}
+				}
+				for (j in this.dJoin) {
+					if (this.buttonRepeat[j] !== undefined) {
+						buttonJoins.push(j);
+					} else {
+						digitalJoins.push(j);
+					}
+				}
+				for (j in this.aJoin) {
 					analogJoins.push(j);
-					this.aJoin.push({ join:j, value:0 });
 				}
-				for (i = 1, n = this.sJoinMax; i <= n; i++) {
-					j = "s" + i;
+				for (j in this.sJoin) {
 					serialJoins.push(j);
-					this.sJoin.push({ join:j, value:"" });
-				}
-				for (i = this.gJoinMin, n = this.gJoinMax; i <= n; i++) {
-					gestureJoins.push("d" + i);
-				}
-
-				if (CrestronMobile.debug) {
-					CF.log("CrestronMobile: dJoinMax=" + this.dJoinMax + ", aJoinMax=" + this.aJoinMax + ", sJoinMax=" + this.sJoinMax);
 				}
 
 				// Disable system if preloading is not complete yet
@@ -139,12 +217,11 @@ var CrestronMobile = {
 				CF.watch(CF.ConnectionStatusChangeEvent, self.systemName, function(system,connected,remote) { self.onSystemConnectionChanged(system,connected,remote); });
 				CF.watch(CF.FeedbackMatchedEvent, self.systemName, "Feedback", function(feedback,match) { self.processFeedback(feedback,match); });
 
-				CF.watch(CF.ObjectPressedEvent, digitalJoins, function(j,v,t) { self.onButtonPressed(j,v,t); });
-				CF.watch(CF.ObjectReleasedEvent, digitalJoins, function(j,v,t) { self.onButtonReleased(j,v,t); });
-				CF.watch(CF.ObjectDraggedEvent, analogJoins, function(j,v,t) { self.onAnalogChanged(j,v,t); });
-
+				CF.watch(CF.ObjectPressedEvent, buttonJoins, function(j) { self.onButtonPressed(j); });
+				CF.watch(CF.ObjectReleasedEvent, buttonJoins, function(j) { self.onButtonReleased(j); });
+				CF.watch(CF.ObjectDraggedEvent, analogJoins, function(j,v) { self.onAnalogChanged(j,v); });
 				CF.watch(CF.JoinChangeEvent, serialJoins, function(j,v,t) { self.onSerialChanged(j,v,t); });
-				CF.watch(CF.JoinChangeEvent, gestureJoins, function(j,v,t) { self.onDigitalChanged(j,v,t); });
+				CF.watch(CF.JoinChangeEvent, digitalJoins, function(j,v) { self.onDigitalChanged(j,v); });
 
 				CF.watch(CF.OrientationChangeEvent, function(page,orientation) { self.onOrientationChange(page,orientation); }, true);
 
@@ -169,27 +246,18 @@ var CrestronMobile = {
 
 			resetRunningJoins: function() {
 				// Reset the known values of joins
-				var i, n;
+				var known;
 				if (CrestronMobile.debug) {
 					CF.log("CrestronMobile: resetting running joins");
 				}
-				for (i = 0, n = this.dJoin.length; i < n; i++) {
-					this.dJoin[i] = {
-						join:"d" + (i + 1),
-						value:0
-					};
+				for (known in this.dJoin) {
+					known.value = 0;
 				}
-				for (i = 0, n = this.aJoin.length; i < n; i++) {
-					this.aJoin[i] = {
-						join:"a" + (i + 1),
-						value:0
-					};
+				for (known in this.aJoin) {
+					known.value = 0;
 				}
-				for (i = 0, n = this.sJoin.length; i < n; i++) {
-					this.sJoin[i] = {
-						join:"s" + (i + 1),
-						value:""
-					};
+				for (known in this.sJoin) {
+					known.value = "";
 				}
 			},
 
@@ -228,7 +296,7 @@ var CrestronMobile = {
 				}
 			},
 
-			sendData:function (data) {
+			sendData: function(data) {
 				CF.send(this.systemName, data, CF.UTF8);
 			},
 
@@ -281,8 +349,8 @@ var CrestronMobile = {
 
 				} else if (type === "connect") {
 					// this won't have any impact if system is not already connecting
-					CF.setSystemProperties(this.systemName, { enabled:true });
 					if (this.state === CrestronMobile.NOT_INITIALIZED || this.state === CrestronMobile.DISCONNECTED) {
+						CF.setSystemProperties(this.systemName, { enabled:true });
 						this.state = CrestronMobile.CONNECTING;
 					}
 				}
@@ -321,29 +389,38 @@ var CrestronMobile = {
 				}
 			},
 
-			onButtonPressed:function (join, value, tokens) {
+			onButtonPressed: function(join) {
 				var id = join.substring(1);
 				var data = "<cresnet><data><bool id=\"" + id + "\" value=\"true\" repeating=\"true\"/></data></cresnet>";
 				this.sendData(data);
-				if (this.digitalJoinRepeat[id] !== undefined) {
-					clearInterval(this.digitalJoinRepeat[id]);
+				var timer = this.buttonRepeat[id];
+				if (timer !== 0) {
+					clearInterval(timer);
+					this.buttonRepeat[id] = 0;
 				}
 				var self = this;
-				this.digitalJoinRepeat[id] = setInterval(function () {
+				this.buttonRepeat[id] = setInterval(function () {
 					self.sendData(data);
 				}, 500);
 			},
 
-			onButtonReleased:function (join, value, tokens) {
+			onButtonReleased: function(join) {
 				var id = join.substring(1);
-				clearInterval(this.digitalJoinRepeat[id]);
-				this.digitalJoinRepeat[id] = undefined;
+				if (this.buttonRepeat[id] !== 0) {
+					clearInterval(this.buttonRepeat[id]);
+					this.buttonRepeat[id] = 0;
+				}
 				this.sendData("<cresnet><data><bool id=\"" + id + "\" value=\"false\" repeating=\"true\"/></data></cresnet>");
 			},
 
 			onAnalogChanged:function (join, value) {
 				if (this.initialized) {
-					this.sendData("<cresnet><data><i32 id=\"" + join.substring(1) + "\" value=\"" + value + "\"/></data></cresnet>");
+					// only transmit update if Crestron doesn't already know this value. In practice, iViewer only fires
+					// join change events when the join value actually changes
+					if (this.aJoin[join] !== value) {
+						this.aJoin[join] = value;
+						this.sendData("<cresnet><data><i32 id=\"" + join.substring(1) + "\" value=\"" + value + "\"/></data></cresnet>");
+					}
 				}
 			},
 
@@ -363,7 +440,19 @@ var CrestronMobile = {
 
 			onDigitalChanged:function (join, value) {
 				if (this.initialized) {
-					value = (value === "1") ? "true" : "false";
+					if (value === 1 || value === "1") {
+						if (this.dJoin[join] === 1) {
+							return;
+						}
+						this.dJoin[join] = 1;
+						value = "true";
+					} else {
+						if (this.dJoin[join] === 0) {
+							return;
+						}
+						this.dJoin[join] = 0;
+						value = "false";
+					}
 					this.sendData("<cresnet><data><bool id=\"" + join.substring(1) + "\" value=\"" + value + "\" repeating=\"true\"/></data></cresnet>");
 				}
 			},
@@ -397,7 +486,7 @@ var CrestronMobile = {
 				if (!this.initialized && (xml.indexOf("string") >= 0 && xml.indexOf("value=\"\"") >= 0)) {
 					return;
 				}
-				var parser = new DOMParser();
+				var parser = new window.DOMParser();
 				xml = xml.substring(xml.indexOf("<?xml"));
 				var tree = parser.parseFromString(xml, "text/xml");
 				//Moved parser back to Parse function.  Possible memory leak causing crash when defined globally.
@@ -408,7 +497,7 @@ var CrestronMobile = {
 				}
 
 				var updates = [];
-				var index, update, valueNode, tempValue;
+				var join, index, valueNode, tempValue;
 				var child, data, childTag, isUTF8;
 				var dataElements = tree.getElementsByTagName("data");
 
@@ -421,17 +510,20 @@ var CrestronMobile = {
 						if (childTag === "bool") {
 							//Found Digital(bool) Element
 							index = child.getAttributeNode("id").nodeValue;
-							update = {
-								join:"d" + index,
-								value:(child.getAttributeNode("value").nodeValue === "true") ? 1 : 0
-							};
-							updates.push(update);
-							this.dJoin[index - 1] = update;
+							join = "d" + index;
+							tempValue = (child.getAttributeNode("value").nodeValue === "true") ? 1 : 0;
+							if (!this.updateComplete || this.dJoin[join] !== tempValue) {
+								if (this.initialized) {
+									updates.push({join:join, value:tempValue});
+								}
+								this.dJoin[join] = tempValue;
+							}
+
 						} else if (childTag === "string") {
 							//Found Serial(string) Element
 							index = child.getAttributeNode("id").nodeValue;
+							join = "s" + index;
 							tempValue = child.getAttribute("value");
-							valueNode = child.getAttributeNode("value");
 							if (tempValue === null) {
 								if (child.firstChild !== null) {
 									tempValue = child.firstChild.nodeValue;
@@ -439,107 +531,149 @@ var CrestronMobile = {
 									tempValue = "";
 								}
 							}
-							update = {
-								join:"s" + index,
-								value:isUTF8 ? decodeURIComponent(escape(tempValue)) : tempValue
-							};
-							updates.push(update);
-							this.sJoin[index - 1] = update;
+							if (isUTF8) {
+								tempValue = decodeURIComponent(escape(tempValue));
+							}
+							if (!this.updateComplete || this.sJoin[join] !== tempValue) {
+								if (this.initialized) {
+									updates.push({join:join, value:tempValue});
+								}
+								this.sJoin[join] = tempValue;
+							}
 
 						} else if (childTag === "i32") {
 							//Found Analog(i32) Element
 							index = child.getAttributeNode("id").nodeValue;
+							join = "a" + index;
 							valueNode = child.getAttributeNode("value");
 							if (valueNode === null) {
-								valueNode = elem.firstChild;
+								valueNode = child.firstChild;
 							}
-							update = {
-								join:"a" + index,
-								value:valueNode.value
-							};
-							updates.push(update);
-							this.aJoin[index - 1] = update;
+							tempValue = valueNode.value;
+							if (!this.updateComplete || this.aJoin[join] !== tempValue) {
+								if (this.initialized) {
+									updates.push({join:join, value:tempValue});
+								}
+								this.aJoin[join] = tempValue;
+							}
 						}
 						child = child.nextSibling;
 					}
 				}
 				//Update Interface
-				if (this.initialized && updates.length > 0) {
+				if (updates.length > 0) {
 					CF.setJoins(updates, true);
 				}
 			},
-			processFeedback:function (feedbackname, matchedstring) {
+
+			gotProgramReadyStatus: function(str) {
+				// This is the first message we should receive upon connecting to Crestron
+				if (CrestronMobile.debug) {
+					CF.log("CrestronMobile: got program ready status " + str);
+				}
+				//Found Program Ready Message, send Connect Request to system
+				this.clearConnectionResetTimeout();
+				this.setLoadingMessageVisible(true);
+				this.updateComplete = false;
+				this.initialized = false;
+				this.loggedIn = false;
+				this.heartbeatCount = 0;		// reset heartbeatCount: this gives us 10s to log in
+				this.resetRunningJoins();
+
+				CF.send(this.systemName, "<cresnet><control><comm><connectRequest><passcode>" + this.password + "</passcode><mode isUnicodeSupported=\"true\"></mode></connectRequest></comm></control></cresnet>");
+			},
+
+			gotConnectResponse: function(str) {
+				//Found Connect Response Message, validate response
+				if (CrestronMobile.debug) {
+					CF.log("CrestronMobile: got connect response " + str);
+				}
+				if (str.indexOf("<code>0</code>") > 0) {
+					//Connection is good, send Update Request Message to system
+					this.loggedIn = true;
+					CF.send(this.systemName, "<cresnet><data><updateRequest></updateRequest></data></cresnet>");
+				} else {
+					this.connection("reset");
+				}
+			},
+
+			gotEndOfUpdate: function(str) {
+				// Update complete, send all current known join status to iViewer
+				// and begin sending Heartbeat Message
+				if (CrestronMobile.debug) {
+					CF.log("CrestronMobile: got endOfUpdate " + str);
+				}
+				this.setLoadingMessageVisible(false);
+
+				var join, initial = [];
+				for (join in this.dJoin) {
+					initial.push({join:join, value:this.dJoin[join]});
+				}
+				for (join in this.aJoin) {
+					initial.push({join:join, value:this.aJoin[join]});
+				}
+				for (join in this.sJoin) {
+					initial.push({join:join, value:this.sJoin[join]});
+				}
+				if (initial.length >= 0) {
+					CF.setJoins(initial, true);
+				}
+
+				this.updateComplete = true;
+				this.initialized = true;
+				this.sendData("<cresnet><data><i32 id=\"17259\" value=\"" + this.orientation + "\"/></data></cresnet>");
+			},
+
+			gotHeartbeatResponse: function() {
+				// Found Hearbeat Response Message
+				this.setLoadingMessageVisible(false);
+				this.updateComplete = true;
+				this.initialized = true;
+			},
+
+			gotHeartbeatRequest: function(str) {
+				if (CrestronMobile.debug) {
+					CF.log("CrestronMobile: got heartbeat request " + str);
+				}
+				this.setLoadingMessageVisible(false);
+				this.updateComplete = true;
+				this.initialized = true;
+			},
+
+			gotDisconnectRequest: function() {
+				this.setLoadingMessageVisible(true);
+				this.updateComplete = false;
+				this.initialized = false;
+				this.loggedIn = false;
+			},
+
+			processFeedback:function (feedbackname, str) {
 				this.heartbeatCount = 0;
 				this.lastDataReceived = Date.now();
-				if (matchedstring.indexOf("<programReady><status>") >= 0) {
-					if (CrestronMobile.debug) {
-						CF.log("CrestronMobile: got program ready status " + matchedstring);
-					}
-					//Found Program Ready Message, send Connect Request to system
-					this.clearConnectionResetTimeout();
-					this.setLoadingMessageVisible(true);
-					this.updateComplete = false;
-					this.initialized = false;
-					this.loggedIn = false;
-					this.heartbeatCount = 0;		// reset heartbeatCount: this gives us 10s to log in
-					this.resetRunningJoins();
 
-					CF.send(this.systemName, "<cresnet><control><comm><connectRequest><passcode>" + this.password + "</passcode><mode isUnicodeSupported=\"true\"></mode></connectRequest></comm></control></cresnet>");
-
-				} else if (matchedstring.indexOf("<connectResponse>") >= 0) {
-					//Found Connect Response Message, validate response
-					if (CrestronMobile.debug) {
-						CF.log("CrestronMobile: got connect response " + matchedstring);
-					}
-					if (matchedstring.indexOf("<code>0</code>") > 0) {
-						//Connection is good, send Update Request Message to system
-						this.loggedIn = true;
-						CF.send(this.systemName, "<cresnet><data><updateRequest></updateRequest></data></cresnet>");
-					} else {
-						this.connection("reset");
-					}
-				} else if (matchedstring.indexOf("endOfUpdate") >= 0) {
-					//Update Finished, begin sending Heartbeat Message
-					if (CrestronMobile.debug) {
-						CF.log("CrestronMobile: got endOfUpdate " + matchedstring);
-					}
-					this.setLoadingMessageVisible(false);
-
-					CF.setJoins(this.dJoin, true);
-					CF.setJoins(this.aJoin, true);
-					CF.setJoins(this.sJoin, true);
-
-					this.updateComplete = true;
-					this.initialized = true;
-					this.sendData("<cresnet><data><i32 id=\"17259\" value=\"" + this.orientation + "\"/></data></cresnet>");
-				} else if (matchedstring.indexOf("</heartbeatResponse>") >= 0) {
-					//Found Hearbeat Response Message
-					this.setLoadingMessageVisible(false);
-					this.updateComplete = true;
-					this.initialized = true;
-				} else if (matchedstring.indexOf("<heartbeatRequest>") >= 0) {
-					if (CrestronMobile.debug) {
-						CF.log("CrestronMobile: got heartbeat request " + matchedstring);
-					}
-					this.setLoadingMessageVisible(false);
-					this.updateComplete = true;
-					this.initialized = true;
-				} else if (matchedstring.indexOf("<string") >= 0 || matchedstring.indexOf("<bool") >= 0 || matchedstring.indexOf("<i32") >= 0) {
+				if (str.indexOf("<programReady><status>") >= 0) {
+					this.gotProgramReadyStatus(str);
+				} else if (str.indexOf("<connectResponse>") >= 0) {
+					this.gotConnectResponse(str);
+				} else if (str.indexOf("endOfUpdate") >= 0) {
+					this.gotEndOfUpdate(str);
+				} else if (str.indexOf("</heartbeatResponse>") >= 0) {
+					this.gotHeartbeatResponse();
+				} else if (str.indexOf("<heartbeatRequest>") >= 0) {
+					this.gotHeartbeatRequest(str);
+				} else if (str.indexOf("<string") >= 0 || str.indexOf("<bool") >= 0 || str.indexOf("<i32") >= 0) {
 					//Parse the updated values
 					if (CrestronMobile.debug) {
-						CF.log("CrestronMobile: got update " + matchedstring);
+						CF.log("CrestronMobile: got update " + str);
 					}
-					this.parseXML(matchedstring);
-				} else if (matchedstring.indexOf("<disconnectRequest>") >= 0) {
-					this.setLoadingMessageVisible(true);
-					this.updateComplete = false;
-					this.initialized = false;
-					this.loggedIn = false;
+					this.parseXML(str);
+				} else if (str.indexOf("<disconnectRequest>") >= 0) {
+					this.gotDisconnectRequest();
 				}
 			}
 		};
 
-		instance.initialize(globalTokens);
+		instance.initialize(config, guiDescription);
 		return instance;
 	}
 };

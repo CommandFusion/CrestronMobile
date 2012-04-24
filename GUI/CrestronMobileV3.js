@@ -69,7 +69,7 @@ var CrestronMobile = {
 			// No auto-configuration found: use old-style compatibility, generate a fake
 			// autoconfig that uses the "CrestronMobile" system and monitors all the pages
 			associatedSystems["CrestronMobile"] = {
-				pages: ["*"],
+				pages: [".*"],
 				joins: [],
 				password: null
 			}
@@ -165,7 +165,7 @@ var CrestronMobile = {
 					var regex = new RegExp(config.pages[i]);
 					for (j = 0; j < numGuiPages; j++) {
 						page = guiPages[j];
-						if (page.name.match(regex)) {
+						if (regex.test(page.name)) {
 							// add all joins of this page
 							this.dJoin[page.join] = 0;
 							this.monitorGuiObjects(page.portraitObjects);

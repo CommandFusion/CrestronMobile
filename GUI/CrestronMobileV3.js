@@ -5,14 +5,10 @@
  CONTACT:	greg.soli@audioadvice.com
  VERSION:	v 3.0-alpha
 
- TODO LIST:
- - Replace join arrays by objects whose properties are the join strings themselves. Each Crestron system can then
-   be configured to target only a certain range or list of joins
- - Autoconfigure the joins to support by looking at the output of CF.getGuiProperties(), and only defined those joins
-   in the arrays
  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
  */
 
+/*
 // Test for autoconfig
 var CrestronMobileConfig_CrestronMobile = {
 	// A list of pages for which we are monitoring all joins. A page name can be a regular expression
@@ -26,6 +22,7 @@ var CrestronMobileConfig_CrestronMobile = {
 	password: "1234"
 
 };
+*/
 
 var CrestronMobile = {
 	// Possible states (constants) of a CrestronMobile instance

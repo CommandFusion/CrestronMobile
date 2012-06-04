@@ -3,26 +3,10 @@
 
  AUTHORS:	Greg Soli, Audio Advice - Florent Pillet, CommandFusion
  CONTACT:	greg.soli@audioadvice.com
- VERSION:	v 3.0-alpha
+ VERSION:	v 3.0-beta
 
  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
  */
-
-/*
-// Test for autoconfig
-var CrestronMobileConfig_CrestronMobile = {
-	// A list of pages for which we are monitoring all joins. A page name can be a regular expression
-	// In a given page, joins of all elements (including elements in referenced subpages) will be processed
-	pages: ["Startup"],
-
-	// An additional list of joins we also want to handle, even though they don't match objects in defined pages
-	joins: [],
-
-	// The password to use to connect to this Crestron processor
-	password: "1234"
-
-};
-*/
 
 var CrestronMobile = {
 	// Possible states (constants) of a CrestronMobile instance
@@ -57,7 +41,7 @@ var CrestronMobile = {
 		// Detect autoconfiguration. Skip system with empty name (main control system)
 		var autoconfigFound = false, associatedSystems = {};
 		for (var systemName in CF.systems) {
-			if (systemName !== "") {
+			if (systemName !== "" && CF.systems[systemName].type === "tcp") {
 				var autoconfigName = "CrestronMobileConfig_" + systemName;
 				if (window[autoconfigName] !== undefined) {
 					autoconfigFound = true;
@@ -65,24 +49,28 @@ var CrestronMobile = {
 				}
 			}
 		}
-		if (!autoconfigFound && CF.systems["CrestronMobile"] !== undefined) {
-			// No auto-configuration found: use old-style compatibility, generate a fake
-			// autoconfig that uses the "CrestronMobile" system and monitors all the pages
-			associatedSystems["CrestronMobile"] = {
-				pages: [".*"],
-				joins: [],
-				password: null
-			}
-		}
 
 		// First get the global tokens, then the GUI description, then we can start
 		// creating instances and link them to the watched joins
 		CF.getJoin(CF.GlobalTokensJoin, function (j, v, globalTokens) {
-			// compatibility with earlier versions: use the password in the global tokens
-			var compatibilityConfig = associatedSystems["CrestronMobile"];
-			if (compatibilityConfig !== undefined && compatibilityConfig.password === null) {
-				associatedSystems["CrestronMobile"].password = globalTokens["cmPassword"] || "1234";
+			// No configured mode, fallback on Compatibility mode
+			CF.log("autoconfigFound="+autoconfigFound);
+			if (!autoconfigFound) {
+				var cmSystem = globalTokens["[CrestronMobile]"] || "CrestronMobile";
+				if (CF.systems[cmSystem] !== undefined && CF.systems[cmSystem].type === "tcp") {
+					// No auto-configuration found: use old-style compatibility, generate a fake
+					// autoconfig that uses the "CrestronMobile" system and monitors all the pages
+					associatedSystems[cmSystem] = {
+						pages: [".*"],
+						joins: [],
+						password: globalTokens["[cmPassword]"] || "1234"
+					}
+					if (CrestronMobile.debug) {
+						CF.log("CrestronMobile falling back on compatibility mode, will use system " + cmSystem + " with password " + associatedSystems[cmSystem].password);
+					}
+				}
 			}
+
 			// Obtain the GUI description and perform instantiation of each CrestronMobile instance in the callback
 			CF.getGuiDescription(function(guiDescription) {
 				for (var sys in associatedSystems) {
@@ -127,6 +115,7 @@ var CrestronMobile = {
 			lastDataReceived: 0,
 
 			connectionResetTimeout:0,
+
 			loadingMessageVisible:false,
 			loadingMessageSubpage:"d4001",
 
@@ -135,21 +124,37 @@ var CrestronMobile = {
 			sJoin: {},
 			buttonRepeat: {},
 
-			monitorGuiObjects: function(guiObjects) {
+			// Take a list of GUI objects (and a list of joins to exclude) and add all
+			// the joins from the list to the monitored join for this processor
+			monitorGuiObjects: function(guiObjects, subpages, excludedJoins) {
 				if (guiObjects !== null) {
-					var i, n;
+					var i, n, guiObj, join, type;
 					for (i = 0, n = guiObjects.length; i < n; i++) {
-						var guiObj = guiObjects[i];
-						var type = guiObj.join.charAt(0);
-						if (type === 'd') {
-							this.dJoin[guiObj.join] = 0;
-							if (guiObj.type === "Button") {
-								this.buttonRepeat[guiObj.join] = 0;
+						guiObj = guiObjects[i];
+						join = guiObj.join;
+						if (excludedJoins.indexOf(join) === -1) {
+							type = join.charAt(0);
+							if (type === 'd') {
+								this.dJoin[join] = 0;
+								if (guiObj.type === "Button") {
+									this.buttonRepeat[join] = 0;
+								}
+							} else if (type === 'a') {
+								this.aJoin[join] = 0;
+							} else if (type === 's' /*&& join !== "s0"*/) {
+								this.sJoin[join] = "";
 							}
-						} else if (type === 'a') {
-							this.aJoin[guiObj.join] = 0;
-						} else if (type === 's') {
-							this.sJoin[guiObj.join] = "";
+						} else if (CrestronMobile.debug) {
+							CF.log("Excluding join " + join);
+						}
+						if (subpages !== null && guiObj.type == "SubpageRef") {
+							var j, ns = subpages.length, name = guiObj.subpage;
+							for (j = 0; j < ns; j++) {
+								if (subpages[j].name == name) {
+									this.monitorGuiObjects(subpages[j].objects, null, excludedJoins);
+									break;
+								}
+							}
 						}
 					}
 				}
@@ -157,8 +162,13 @@ var CrestronMobile = {
 
 			initialize: function(config, guiDescription) {
 				var i, j, n, c;
-				var guiPages = guiDescription.pages, numGuiPages = guiPages.length, page;
-				var buttonJoins = [], analogJoins = [], serialJoins = [], digitalJoins = [];
+				var guiPages = guiDescription.pages, numGuiPages = guiPages.length, page, subpages = guiDescription.subpages;
+				var buttonJoins = [], analogJoins = [], serialJoins = [], digitalJoins = [], excludedJoins = [];
+
+				// get the optional list of excluded joins, otherwise we'll use an empty list
+				if (config["excludedJoins"] !== undefined) {
+					excludedJoins = config.excludedJoins;
+				}
 
 				// gather the complete set of joins to monitor
 				for (i = 0, n = config.pages.length; i < n; i++) {
@@ -168,16 +178,18 @@ var CrestronMobile = {
 						if (regex.test(page.name)) {
 							// add all joins of this page
 							this.dJoin[page.join] = 0;
-							this.monitorGuiObjects(page.portraitObjects);
-							this.monitorGuiObjects(page.landscapeObjects);
+							this.monitorGuiObjects(page.portraitObjects, subpages, excludedJoins);
+							this.monitorGuiObjects(page.landscapeObjects, subpages, excludedJoins);
 						}
 					}
 				}
+
 				// add optional joins defined in config.joins. Note that any buttons added here won't
 				// be observed as repeating buttons, but simply as on/off digital joins
-				if (config.joins !== undefined) {
-					for (i = 0, n = config.joins.length; i < n; i++) {
-						j = config.joins[i];
+				if (config["additionalJoins"] !== undefined) {
+					var array = config.additionalJoins;
+					for (i = 0, n = array.length; i < n; i++) {
+						j = array[i];
 						c = j.charAt(0);
 						if (c === 'd') {
 							digitalJoins.push(j);
@@ -258,8 +270,11 @@ var CrestronMobile = {
 				}
 			},
 
+			// ------------------------------------------------------------------
+			// User interface support
+			// ------------------------------------------------------------------
 			setLoadingMessageVisible:function (show) {
-				if (this.loadingMessageVisible !== show) {
+				if (this.loadingMessageSubpage !== null && this.loadingMessageVisible !== show) {
 					this.loadingMessageVisible = show;
 					CF.setJoin(this.loadingMessageSubpage, show);
 				}
@@ -270,7 +285,7 @@ var CrestronMobile = {
 			// ------------------------------------------------------------------
 			onNetworkStatusChange:function (networkStatus) {
 				if (CrestronMobile.debug) {
-					CF.log("CrestronMobile: networkStatus hasNetwork=" + networkStatus.hasNetwork);
+					CF.log(this.systemName + ": networkStatus hasNetwork=" + networkStatus.hasNetwork);
 				}
 				this.hasNetwork = networkStatus.hasNetwork;
 				if (networkStatus.hasNetwork) {
@@ -284,7 +299,7 @@ var CrestronMobile = {
 
 			onSystemConnectionChanged: function(system, connected, remote) {
 				if (CrestronMobile.debug) {
-					CF.log("CrestronMobile: system connected=" + connected + ", remote=" + remote);
+					CF.log(this.systemName + ": system connected=" + connected + ", remote=" + remote);
 				}
 				this.systemConnected = connected;
 				if (connected) {
@@ -306,7 +321,7 @@ var CrestronMobile = {
 
 			connection:function (type) {
 				if (CrestronMobile.debug) {
-					CF.log("CrestronMobile: connection " + type);
+					CF.log(this.systemName + ": connection " + type);
 				}
 
 				if (type === "reset") {
@@ -323,7 +338,7 @@ var CrestronMobile = {
 						var self = this;
 						this.connectionResetTimeout = setTimeout(function () {
 							if (CrestronMobile.debug) {
-								CF.log("CrestronMobile: connectionResetTimeout expired, re-enabling system");
+								CF.log(self.systemName + ": connectionResetTimeout expired, re-enabling system");
 							}
 							self.connectionResetTimeout = 0;
 							self.heartbeatCount = 0;			// prevent timer from reseting us again too early
@@ -358,7 +373,7 @@ var CrestronMobile = {
 			// ------------------------------------------------------------------
 			onGUISuspended:function () {
 				if (CrestronMobile.debug) {
-					CF.log("CrestronMobile: GUI suspended");
+					CF.log(this.systemName + ": GUI suspended");
 				}
 				this.guiSuspended = true;
 				this.heartbeatCount = 0;
@@ -366,7 +381,7 @@ var CrestronMobile = {
 
 			onGUIResumed:function () {
 				if (CrestronMobile.debug) {
-					CF.log("CrestronMobile: GUI resumed");
+					CF.log(this.systemName + ": GUI resumed");
 				}
 				this.guiSuspended = false;
 				this.heartbeatCount = 0;
@@ -375,7 +390,7 @@ var CrestronMobile = {
 
 			onOrientationChange:function (pageName, newOrientation) {
 				if (CrestronMobile.debug) {
-					CF.log("CrestronMobile: orientation changed, pageName=" + pageName + ", newOrientation=" + newOrientation);
+					CF.log(this.systemName + ": orientation changed, pageName=" + pageName + ", newOrientation=" + newOrientation);
 				}
 				if (newOrientation === CF.LandscapeOrientation) {
 					this.sendData("<cresnet><data><i32 id=\"17259\" value=\"2\"/></data></cresnet>");
@@ -473,7 +488,7 @@ var CrestronMobile = {
 						// is not already in progress
 						if (this.connectionResetTimeout === 0) {
 							if (CrestronMobile.debug) {
-								CF.log("CrestronMobile: no response from Crestron for more than 5 seconds, resetting the connection");
+								CF.log(this.systemName + ": no response from Crestron processor for more than 5 seconds, resetting the connection");
 							}
 							this.heartbeatCount = 0;
 							this.connection("reset");
@@ -514,7 +529,7 @@ var CrestronMobile = {
 					while (child !== null) {
 						childTag = child.tagName;
 						if (childTag === "bool") {
-							//Found Digital(bool) Element
+							// Found Digital(bool) Element
 							index = child.getAttributeNode("id").nodeValue;
 							join = "d" + index;
 							tempValue = (child.getAttributeNode("value").nodeValue === "true") ? 1 : 0;
@@ -526,7 +541,7 @@ var CrestronMobile = {
 							}
 
 						} else if (childTag === "string") {
-							//Found Serial(string) Element
+							// Found Serial(string) Element
 							index = child.getAttributeNode("id").nodeValue;
 							join = "s" + index;
 							tempValue = child.getAttribute("value");
@@ -548,7 +563,7 @@ var CrestronMobile = {
 							}
 
 						} else if (childTag === "i32") {
-							//Found Analog(i32) Element
+							// Found Analog(i32) Element
 							index = child.getAttributeNode("id").nodeValue;
 							join = "a" + index;
 							valueNode = child.getAttributeNode("value");
@@ -566,7 +581,7 @@ var CrestronMobile = {
 						child = child.nextSibling;
 					}
 				}
-				//Update Interface
+				// Update Interface
 				if (updates.length > 0) {
 					CF.setJoins(updates, true);
 				}
@@ -575,7 +590,7 @@ var CrestronMobile = {
 			gotProgramReadyStatus: function(str) {
 				// This is the first message we should receive upon connecting to Crestron
 				if (CrestronMobile.debug) {
-					CF.log("CrestronMobile: got program ready status " + str);
+					CF.log(this.systemName + ": got program ready status " + str);
 				}
 				//Found Program Ready Message, send Connect Request to system
 				this.clearConnectionResetTimeout();
@@ -607,7 +622,7 @@ var CrestronMobile = {
 				// Update complete, send all current known join status to iViewer
 				// and begin sending Heartbeat Message
 				if (CrestronMobile.debug) {
-					CF.log("CrestronMobile: got endOfUpdate " + str);
+					CF.log(this.systemName + ": got endOfUpdate " + str);
 				}
 				this.setLoadingMessageVisible(false);
 
@@ -639,7 +654,7 @@ var CrestronMobile = {
 
 			gotHeartbeatRequest: function(str) {
 				if (CrestronMobile.debug) {
-					CF.log("CrestronMobile: got heartbeat request " + str);
+					CF.log(this.systemName + ": got heartbeat request " + str);
 				}
 				this.setLoadingMessageVisible(false);
 				this.updateComplete = true;
@@ -688,5 +703,5 @@ CF.modules.push({
 	name:"CrestronMobile",			// the name of this module
 	setup:CrestronMobile.setup,		// the setup function to call before CF.userMain
 	object:CrestronMobile,			// the `this' object for the setup function
-	version:"v3.0-alpha"			// the version of this module
+	version:"v3.0-beta"				// the version of this module
 });

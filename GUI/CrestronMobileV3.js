@@ -26,7 +26,12 @@ var CrestronMobile = {
 	//
 	setup:function () {
 		if (CrestronMobile.debug) {
-			CF.log("CrestronMobile: setup()");
+			// turn off CrestronMobile logging if Remote Debugger is not connected
+			if (CF.debug) {
+				CF.log("CrestronMobile: setup()");
+			} else {
+				CrestronMobile.debug = false;
+			}
 		}
 
 		// Setup unique ports if CrestronUUID was included

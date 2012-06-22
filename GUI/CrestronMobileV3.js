@@ -558,22 +558,24 @@ var CrestronMobile = {
 							index = child.getAttributeNode("id").nodeValue;
 							if (index > 0) {
 								join = "s" + index;
-								tempValue = child.getAttribute("value");
-								if (tempValue === null) {
-									if (child.firstChild !== null) {
-										tempValue = child.firstChild.nodeValue;
-									} else {
-										tempValue = "";
+								if (this.sJoin.hasOwnProperty(join)) {
+									tempValue = child.getAttribute("value");
+									if (tempValue === null) {
+										if (child.firstChild !== null) {
+											tempValue = child.firstChild.nodeValue;
+										} else {
+											tempValue = "";
+										}
 									}
-								}
-								if (isUTF8) {
-									tempValue = decodeURIComponent(escape(tempValue));
-								}
-								if (!this.updateComplete || this.sJoin[join] !== tempValue) {
-									if (this.initialized) {
-										updates.push({join:join, value:tempValue});
+									if (isUTF8) {
+										tempValue = decodeURIComponent(escape(tempValue));
 									}
-									this.sJoin[join] = tempValue;
+									if (!this.updateComplete || this.sJoin[join] !== tempValue) {
+										if (this.initialized) {
+											updates.push({join:join, value:tempValue});
+										}
+										this.sJoin[join] = tempValue;
+									}
 								}
 							}
 
@@ -600,6 +602,13 @@ var CrestronMobile = {
 				}
 				// Update Interface
 				if (updates.length > 0) {
+					if (CrestronMobile.debug) {
+						var ss="parseXML: ";
+						for (var j=0;j<updates.length;j++) {
+							ss+=updates[j].join+"="+updates[j].value;
+						}
+						CF.log(ss);
+					}
 					CF.setJoins(updates, true);
 				}
 			},
@@ -654,6 +663,13 @@ var CrestronMobile = {
 					initial.push({join:join, value:this.sJoin[join]});
 				}
 				if (initial.length >= 0) {
+					if (CrestronMobile.debug) {
+						var ss="initial: ";
+						for (var j=0;j<initial.length;j++) {
+							ss+=initial[j].join+"="+initial[j].value;
+						}
+						CF.log(ss);
+					}
 					CF.setJoins(initial, true);
 				}
 

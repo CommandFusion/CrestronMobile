@@ -16,6 +16,14 @@ var CrestronMobile = {
 	RESETTING: 3,
 	DISCONNECTED: 4,
 
+	// list of truthy values that we can receive from XML
+	truth: {
+		"true": 1,
+		"True": 1,
+		"TRUE": 1,
+		"1": 1
+	},
+
 	// Global Variable Assignments
 	debug: true,			// set to true to add CrestronMobile's own debugging messages to the log
 	preloadComplete: false,
@@ -544,8 +552,11 @@ var CrestronMobile = {
 							index = child.getAttributeNode("id").nodeValue;
 							if (index > 0) {
 								join = "d" + index;
-								tempValue = (child.getAttributeNode("value").nodeValue === "true") ? 1 : 0;
-								if (!this.updateComplete || this.dJoin[join] !== tempValue) {
+								tempValue = CrestronMobile.truth[child.getAttributeNode("value").nodeValue];
+								if (tempValue === undefined) {
+									tempValue = false;
+								}
+								if (!this.updateComplete || this.dJoin[join] != tempValue) {
 									if (this.initialized) {
 										updates.push({join:join, value:tempValue});
 									}

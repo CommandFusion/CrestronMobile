@@ -614,7 +614,7 @@ var CrestronMobile = {
 									if (isUTF8) {
 										tempValue = decodeURIComponent(escape(tempValue));
 									}
-									if (!this.updateComplete || this.sJoin[join] !== tempValue) {
+									if (!this.updateComplete || this.sJoin[join] != tempValue) {
 										if (this.initialized) {
 											updates.push({join:join, value:tempValue});
 										}
@@ -633,7 +633,7 @@ var CrestronMobile = {
 									valueNode = child.firstChild;
 								}
 								tempValue = valueNode.nodeValue;
-								if (!this.updateComplete || this.aJoin[join] !== tempValue) {
+								if (!this.updateComplete || this.aJoin[join] != tempValue) {
 									if (this.initialized) {
 										updates.push({join:join, value:tempValue});
 									}

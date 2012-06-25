@@ -36,7 +36,7 @@ var CrestronMobile = {
 		if (CrestronMobile.debug) {
 			// turn off CrestronMobile logging if Remote Debugger is not connected
 			if (CF.debug) {
-				CF.log("CrestronMobile: setup()");
+				CF.log("CrestronMobile - setting up");
 			} else {
 				CrestronMobile.debug = false;
 			}
@@ -67,7 +67,6 @@ var CrestronMobile = {
 		// creating instances and link them to the watched joins
 		CF.getJoin(CF.GlobalTokensJoin, function (j, v, globalTokens) {
 			// No configured mode, fallback on Compatibility mode
-			CF.log("autoconfigFound="+autoconfigFound);
 			if (!autoconfigFound) {
 				var cmSystem = globalTokens["[CrestronMobile]"] || "CrestronMobile";
 				if (CF.systems[cmSystem] !== undefined && CF.systems[cmSystem].type === "tcp") {
@@ -163,8 +162,6 @@ var CrestronMobile = {
 									this.sJoin[join] = "";
 								}
 							}
-						} else if (CrestronMobile.debug) {
-							CF.log("Excluding join " + join);
 						}
 						if (subpages !== null && guiObj.type == "SubpageRef") {
 							var j, ns = subpages.length, name = guiObj.subpage;
@@ -613,13 +610,6 @@ var CrestronMobile = {
 				}
 				// Update Interface
 				if (updates.length > 0) {
-					if (CrestronMobile.debug) {
-						var ss="parseXML: ";
-						for (var j=0;j<updates.length;j++) {
-							ss+=updates[j].join+"="+updates[j].value;
-						}
-						CF.log(ss);
-					}
 					CF.setJoins(updates, true);
 				}
 			},

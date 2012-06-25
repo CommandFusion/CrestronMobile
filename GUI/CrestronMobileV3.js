@@ -90,7 +90,7 @@ var CrestronMobile = {
 						pages: [".*"],
 						joins: [],
 						password: globalTokens["[cmPassword]"] || "1234"
-					}
+					};
 					if (CrestronMobile.debug) {
 						CF.log("CrestronMobile falling back on compatibility mode, will use system " + cmSystem + " with password " + associatedSystems[cmSystem].password);
 					}

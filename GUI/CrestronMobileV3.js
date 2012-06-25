@@ -53,12 +53,26 @@ var CrestronMobile = {
 
 		// Detect autoconfiguration. Skip system with empty name (main control system)
 		var autoconfigFound = false, associatedSystems = {};
+		var additionalExcludedJoins = [];
 		for (var systemName in CF.systems) {
-			if (systemName !== "" && CF.systems[systemName].type === "tcp") {
-				var autoconfigName = "CrestronMobileConfig_" + systemName;
-				if (window[autoconfigName] !== undefined) {
-					autoconfigFound = true;
-					associatedSystems[systemName] = window[autoconfigName];
+			if (CF.systems.hasOwnProperty(systemName)) {
+				// We want to automatically exclude the connection and disconnection joins for all systems
+				// from CrestronMobile access
+				var sys = CF.systems[systemName];
+				if (sys.connect.length) {
+					additionalExcludedJoins.push(sys.connect);
+				}
+				if (sys.disconnect.length) {
+					additionalExcludedJoins.push(sys.disconnect);
+				}
+
+				// If system is of type TCP, detect an autoconfiguration object
+				if (systemName !== "" && CF.systems[systemName].type === "tcp") {
+					var autoconfigName = "CrestronMobileConfig_" + systemName;
+					if (window[autoconfigName] !== undefined) {
+						autoconfigFound = true;
+						associatedSystems[systemName] = window[autoconfigName];
+					}
 				}
 			}
 		}
@@ -86,9 +100,11 @@ var CrestronMobile = {
 			// Obtain the GUI description and perform instantiation of each CrestronMobile instance in the callback
 			CF.getGuiDescription(function(guiDescription) {
 				for (var sys in associatedSystems) {
-					// Create a new instance
-					var instance = CrestronMobile.createInstance(sys, associatedSystems[sys], guiDescription);
-					CrestronMobile.instances.push(instance);
+					if (associatedSystems.hasOwnProperty(sys)) {
+						// Create a new instance
+						var instance = CrestronMobile.createInstance(sys, associatedSystems[sys], guiDescription, additionalExcludedJoins);
+						CrestronMobile.instances.push(instance);
+					}
 				}
 			});
 		});
@@ -107,7 +123,7 @@ var CrestronMobile = {
 	* @param config		the configuration object we use to setup watches
 	* @param guiDescription the result of CF.getGuiDescription()
 	*/
-	createInstance: function(name, config, guiDescription) {
+	createInstance: function(name, config, guiDescription, additionalExcludedJoins) {
 
 		var instance = {
 			systemName: name,
@@ -176,7 +192,7 @@ var CrestronMobile = {
 				}
 			},
 
-			initialize: function(config, guiDescription) {
+			initialize: function(config, guiDescription, additionalExcludedJoins) {
 				var i, j, n, c;
 				var guiPages = guiDescription.pages, numGuiPages = guiPages.length, page, subpages = guiDescription.subpages;
 				var buttonJoins = [], analogJoins = [], serialJoins = [], digitalJoins = [], excludedJoins = [];
@@ -184,6 +200,9 @@ var CrestronMobile = {
 				// get the optional list of excluded joins, otherwise we'll use an empty list
 				if (config["excludedJoins"] !== undefined) {
 					excludedJoins = config.excludedJoins;
+				}
+				if (additionalExcludedJoins.length) {
+					excludedJoins = excludedJoins.concat(additionalExcludedJoins);
 				}
 
 				// gather the complete set of joins to monitor
@@ -736,7 +755,7 @@ var CrestronMobile = {
 			}
 		};
 
-		instance.initialize(config, guiDescription);
+		instance.initialize(config, guiDescription, additionalExcludedJoins);
 		return instance;
 	}
 };

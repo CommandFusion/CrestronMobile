@@ -235,18 +235,27 @@ var CrestronMobile = {
 						}
 					}
 				}
-				for (j in this.dJoin) {
-					if (this.buttonRepeat[j] !== undefined) {
-						buttonJoins.push(j);
-					} else {
-						digitalJoins.push(j);
+				var joins = this.dJoin;
+				for (j in joins) {
+					if (joins.hasOwnProperty(j)) {
+						if (this.buttonRepeat[j] !== undefined) {
+							buttonJoins.push(j);
+						} else {
+							digitalJoins.push(j);
+						}
 					}
 				}
-				for (j in this.aJoin) {
-					analogJoins.push(j);
+				joins = this.aJoin;
+				for (j in joins) {
+					if (joins.hasOwnProperty(j)) {
+						analogJoins.push(j);
+					}
 				}
-				for (j in this.sJoin) {
-					serialJoins.push(j);
+				joins = this.sJoin;
+				for (j in joins) {
+					if (joins.hasOwnProperty(j)) {
+						serialJoins.push(j);
+					}
 				}
 
 				// Disable system if preloading is not complete yet
@@ -680,24 +689,25 @@ var CrestronMobile = {
 				}
 				this.setLoadingMessageVisible(false);
 
-				var join, initial = [];
-				for (join in this.dJoin) {
-					initial.push({join:join, value:this.dJoin[join]});
+				var j, initial = [], joins = this.dJoin;
+				for (j in joins) {
+					if (joins.hasOwnProperty(j)) {
+						initial.push({join:j, value:joins[j]});
+					}
 				}
-				for (join in this.aJoin) {
-					initial.push({join:join, value:this.aJoin[join]});
+				joins = this.aJoin;
+				for (j in joins) {
+					if (joins.hasOwnProperty(j)) {
+						initial.push({join:j, value:joins[j]});
+					}
 				}
-				for (join in this.sJoin) {
-					initial.push({join:join, value:this.sJoin[join]});
+				joins = this.sJoin;
+				for (j in joins) {
+					if (joins.hasOwnProperty(j)) {
+						initial.push({join:j, value:joins[j]});
+					}
 				}
 				if (initial.length >= 0) {
-					if (CrestronMobile.debug) {
-						var ss="initial: ";
-						for (var j=0;j<initial.length;j++) {
-							ss+=initial[j].join+"="+initial[j].value;
-						}
-						CF.log(ss);
-					}
 					CF.setJoins(initial, true);
 				}
 

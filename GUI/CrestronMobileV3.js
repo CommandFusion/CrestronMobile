@@ -271,18 +271,26 @@ var CrestronMobile = {
 
 			resetRunningJoins: function() {
 				// Reset the known values of joins
-				var known;
 				if (CrestronMobile.debug) {
 					CF.log("CrestronMobile: resetting running joins");
 				}
-				for (known in this.dJoin) {
-					known.value = 0;
+				var j, joins = this.dJoin;
+				for (j in joins) {
+					if (joins.hasOwnProperty(j)) {
+						joins[j].value = 0;
+					}
 				}
-				for (known in this.aJoin) {
-					known.value = 0;
+				joins = this.aJoin;
+				for (j in joins) {
+					if (joins.hasOwnProperty(j)) {
+						joins[j].value = 0;
+					}
 				}
-				for (known in this.sJoin) {
-					known.value = "";
+				joins = this.sJoin;
+				for (j in joins) {
+					if (joins.hasOwnProperty(j)) {
+						joins[j].value = "";
+					}
 				}
 			},
 

@@ -3,7 +3,7 @@
 
  AUTHORS:	Greg Soli, Audio Advice - Florent Pillet, CommandFusion
  CONTACT:	greg.soli@audioadvice.com
- VERSION:	v 3.0-beta 2
+ VERSION:	v 3.0-beta 3
 
  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
  */
@@ -53,7 +53,7 @@ var CrestronMobile = {
 
 		// Detect autoconfiguration. Skip system with empty name (main control system)
 		var autoconfigFound = false, associatedSystems = {};
-		var additionalExcludedJoins = [];
+		var additionalExcludedJoins = ["d0","s0","a0"];		// ignore zero joins by default
 		for (var systemName in CF.systems) {
 			if (CF.systems.hasOwnProperty(systemName)) {
 				// We want to automatically exclude the connection and disconnection joins for all systems
@@ -163,20 +163,14 @@ var CrestronMobile = {
 						if (excludedJoins.indexOf(join) === -1) {
 							type = join.charAt(0);
 							if (type === 'd') {
-								if (join !== "d0") {
-									this.dJoin[join] = 0;
-									if (guiObj.type === "Button") {
-										this.buttonRepeat[join] = 0;
-									}
+								this.dJoin[join] = 0;
+								if (guiObj.type === "Button") {
+									this.buttonRepeat[join] = 0;
 								}
 							} else if (type === 'a') {
-								if (join !== "a0") {
-									this.aJoin[join] = 0;
-								}
+								this.aJoin[join] = 0;
 							} else if (type === 's') {
-								if (join !== "s0") {
-									this.sJoin[join] = "";
-								}
+								this.sJoin[join] = "";
 							}
 						}
 						if (subpages !== null && guiObj.type == "SubpageRef") {
@@ -201,9 +195,7 @@ var CrestronMobile = {
 				if (config["excludedJoins"] !== undefined) {
 					excludedJoins = config.excludedJoins;
 				}
-				if (additionalExcludedJoins.length) {
-					excludedJoins = excludedJoins.concat(additionalExcludedJoins);
-				}
+				excludedJoins = excludedJoins.concat(additionalExcludedJoins);
 
 				// gather the complete set of joins to monitor
 				for (i = 0, n = config.pages.length; i < n; i++) {
@@ -212,7 +204,9 @@ var CrestronMobile = {
 						page = guiPages[j];
 						if (regex.test(page.name)) {
 							// add all joins of this page
-							this.dJoin[page.join] = 0;
+							if (page.join !== "d0") {
+								this.dJoin[page.join] = 0;
+							}
 							this.monitorGuiObjects(page.portraitObjects, subpages, excludedJoins);
 							this.monitorGuiObjects(page.landscapeObjects, subpages, excludedJoins);
 						}
@@ -774,5 +768,5 @@ CF.modules.push({
 	name:"CrestronMobile",			// the name of this module
 	setup:CrestronMobile.setup,		// the setup function to call before CF.userMain
 	object:CrestronMobile,			// the `this' object for the setup function
-	version:"v3.0-beta-2"			// the version of this module
+	version:"v3.0-b3"				// the version of this module
 });

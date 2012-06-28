@@ -562,7 +562,7 @@ var CrestronMobile = {
 				}
 
 				var updates = [];
-				var join, index, valueNode, tempValue;
+				var join, valueNode, tempValue;
 				var child, data, childTag, isUTF8;
 				var dataElements = tree.getElementsByTagName("data");
 
@@ -574,64 +574,49 @@ var CrestronMobile = {
 						childTag = child.tagName;
 						if (childTag === "bool") {
 							// Found Digital(bool) Element
-							index = child.getAttributeNode("id").nodeValue;
-							if (index > 0) {
-								join = "d" + index;
-								tempValue = CrestronMobile.truth[child.getAttributeNode("value").nodeValue];
-								if (tempValue === undefined) {
-									tempValue = false;
-								}
-								if (!this.updateComplete || this.dJoin[join] != tempValue) {
-									if (this.initialized) {
-										updates.push({join:join, value:tempValue});
-									}
-									this.dJoin[join] = tempValue;
-								}
+							join = "d" + child.getAttributeNode("id").nodeValue;
+							tempValue = CrestronMobile.truth[child.getAttributeNode("value").nodeValue];
+							if (tempValue === undefined) {
+								tempValue = 0;
 							}
+							if (this.initialized) {
+								updates.push({join:join, value:tempValue});
+							}
+							this.dJoin[join] = tempValue;
 
 						} else if (childTag === "string") {
 							// Found Serial(string) Element
-							index = child.getAttributeNode("id").nodeValue;
-							if (index > 0) {
-								join = "s" + index;
-								if (this.sJoin.hasOwnProperty(join)) {
-									tempValue = child.getAttribute("value");
-									if (tempValue === null) {
-										if (child.firstChild !== null) {
-											tempValue = child.firstChild.nodeValue;
-										} else {
-											tempValue = "";
-										}
-									}
-									if (isUTF8) {
-										tempValue = decodeURIComponent(escape(tempValue));
-									}
-									if (!this.updateComplete || this.sJoin[join] != tempValue) {
-										if (this.initialized) {
-											updates.push({join:join, value:tempValue});
-										}
-										this.sJoin[join] = tempValue;
+							join = "s" + child.getAttributeNode("id").nodeValue;
+							if (this.sJoin.hasOwnProperty(join)) {
+								tempValue = child.getAttribute("value");
+								if (tempValue === null) {
+									if (child.firstChild !== null) {
+										tempValue = child.firstChild.nodeValue;
+									} else {
+										tempValue = "";
 									}
 								}
+								if (isUTF8) {
+									tempValue = decodeURIComponent(escape(tempValue));
+								}
+								if (this.initialized) {
+									updates.push({join:join, value:tempValue});
+								}
+								this.sJoin[join] = tempValue;
 							}
 
 						} else if (childTag === "i32") {
 							// Found Analog(i32) Element
-							index = child.getAttributeNode("id").nodeValue;
-							if (index > 0) {
-								join = "a" + index;
-								valueNode = child.getAttributeNode("value");
-								if (valueNode === null) {
-									valueNode = child.firstChild;
-								}
-								tempValue = valueNode.nodeValue;
-								if (!this.updateComplete || this.aJoin[join] != tempValue) {
-									if (this.initialized) {
-										updates.push({join:join, value:tempValue});
-									}
-									this.aJoin[join] = tempValue;
-								}
+							join = "a" + child.getAttributeNode("id").nodeValue;
+							valueNode = child.getAttributeNode("value");
+							if (valueNode === null) {
+								valueNode = child.firstChild;
 							}
+							tempValue = valueNode.nodeValue;
+							if (this.initialized) {
+								updates.push({join:join, value:tempValue});
+							}
+							this.aJoin[join] = tempValue;
 						}
 						child = child.nextSibling;
 					}

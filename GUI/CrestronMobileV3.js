@@ -448,7 +448,6 @@ var CrestronMobile = {
 			},
 
 			onButtonPressed: function(join) {
-				this.dJoin[join] = 1;
 				if (this.initialized) {
 					var id = join.substring(1);
 					var data = "<cresnet><data><bool id=\"" + id + "\" value=\"true\" repeating=\"true\"/></data></cresnet>";
@@ -471,7 +470,6 @@ var CrestronMobile = {
 			},
 
 			onButtonReleased: function(join) {
-				this.dJoin[join] = 0;
 				var id = join.substring(1);
 				if (this.buttonRepeat[id] !== 0) {
 					clearInterval(this.buttonRepeat[id]);

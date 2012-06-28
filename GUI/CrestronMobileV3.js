@@ -3,7 +3,7 @@
 
  AUTHORS:	Greg Soli, Audio Advice - Florent Pillet, CommandFusion
  CONTACT:	greg.soli@audioadvice.com
- VERSION:	v 3.0-beta 3
+ VERSION:	v 3.0-beta 4
 
  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
  */
@@ -751,5 +751,5 @@ CF.modules.push({
 	name:"CrestronMobile",			// the name of this module
 	setup:CrestronMobile.setup,		// the setup function to call before CF.userMain
 	object:CrestronMobile,			// the `this' object for the setup function
-	version:"v3.0-b3"				// the version of this module
+	version:"v3.0-b4"				// the version of this module
 });

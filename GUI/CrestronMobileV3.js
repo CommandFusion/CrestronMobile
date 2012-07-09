@@ -498,17 +498,12 @@ var CrestronMobile = {
 			},
 
 			onSerialChanged:function (join, value) {
-				//Not Currently Supported By Crestron
-				/*
-				var data;
-				var id;
 				if (this.initialized === true) {
-				id = join.substring(1);
-
-				data = "<cresnet><data  som=\"true\" eom=\"true\"><string id=\"" + id + "\" value=\"" + value + "\"/></data></cresnet>";
-				this.sendData(data);
+					if (this.sJoin[join] !== value) {
+						this.sJoin[join] = value;
+						this.sendData("<cresnet><data  som=\"true\" eom=\"true\"><string id=\"" + join.substring(1) + "\" value=\"" + value + "\"/></data></cresnet>");
+					}
 				}
-				*/
 			},
 
 			onDigitalChanged:function (join, value) {

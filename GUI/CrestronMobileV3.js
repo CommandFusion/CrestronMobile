@@ -307,19 +307,19 @@ var CrestronMobile = {
 				var j, joins = this.dJoin;
 				for (j in joins) {
 					if (joins.hasOwnProperty(j)) {
-						joins[j].value = 0;
+						joins[j] = 0;
 					}
 				}
 				joins = this.aJoin;
 				for (j in joins) {
 					if (joins.hasOwnProperty(j)) {
-						joins[j].value = 0;
+						joins[j] = 0;
 					}
 				}
 				joins = this.sJoin;
 				for (j in joins) {
 					if (joins.hasOwnProperty(j)) {
-						joins[j].value = "";
+						joins[j] = "";
 					}
 				}
 			},

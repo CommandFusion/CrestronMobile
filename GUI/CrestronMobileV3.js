@@ -478,12 +478,14 @@ var CrestronMobile = {
 			},
 
 			onButtonReleased: function(join) {
-				var id = join.substring(1);
-				if (this.buttonRepeat[id] !== 0) {
-					clearInterval(this.buttonRepeat[id]);
-					this.buttonRepeat[id] = 0;
+				if (this.initialized) {
+					var id = join.substring(1);
+					if (this.buttonRepeat[id] !== 0) {
+						clearInterval(this.buttonRepeat[id]);
+						this.buttonRepeat[id] = 0;
+					}
+					this.sendData("<cresnet><data><bool id=\"" + id + "\" value=\"false\" repeating=\"true\"/></data></cresnet>");
 				}
-				this.sendData("<cresnet><data><bool id=\"" + id + "\" value=\"false\" repeating=\"true\"/></data></cresnet>");
 			},
 
 			onAnalogChanged:function (join, value) {
@@ -498,7 +500,7 @@ var CrestronMobile = {
 			},
 
 			onSerialChanged:function (join, value) {
-				if (this.initialized === true) {
+				if (this.initialized) {
 					if (this.sJoin[join] !== value) {
 						this.sJoin[join] = value;
 						this.sendData("<cresnet><data  som=\"true\" eom=\"true\"><string id=\"" + join.substring(1) + "\" value=\"" + value + "\"/></data></cresnet>");

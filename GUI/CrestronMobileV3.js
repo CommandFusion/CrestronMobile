@@ -503,6 +503,10 @@ var CrestronMobile = {
 				if (this.initialized) {
 					if (this.sJoin[join] !== value) {
 						this.sJoin[join] = value;
+						value = value.replace(/&/g, '&amp;')
+							.replace(/</g, '&lt;')
+							.replace(/>/g, '&gt;')
+							.replace(/"/g, '&quot;');
 						this.sendData("<cresnet><data  som=\"true\" eom=\"true\"><string id=\"" + join.substring(1) + "\" value=\"" + value + "\"/></data></cresnet>");
 					}
 				}

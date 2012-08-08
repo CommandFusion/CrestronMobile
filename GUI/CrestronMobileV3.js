@@ -161,7 +161,7 @@ var CrestronMobile = {
 						guiObj = guiObjects[i];
 						join = guiObj.join;
 						type = join.charAt(0);
-						excluded = (excludedJoins.indexOf(join) === -1);
+						excluded = (excludedJoins.indexOf(join) !== -1);
 						if (type === 'd') {
 							if (guiObj.type === "Button") {
 								if (!excluded) {

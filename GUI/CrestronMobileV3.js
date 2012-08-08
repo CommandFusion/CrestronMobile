@@ -160,38 +160,38 @@ var CrestronMobile = {
 					for (i = 0, n = guiObjects.length; i < n; i++) {
 						guiObj = guiObjects[i];
 						join = guiObj.join;
-						type = join.charAt(0);
 						excluded = (excludedJoins.indexOf(join) !== -1);
-						if (type === 'd') {
-							if (guiObj.type === "Button") {
-								if (!excluded) {
-									this.buttonRepeat[join] = 0;
-								}
-								join = guiObj.activeTextJoin;
-								if (join.length && excludedJoins.indexOf(join) === -1) {
-									this.sJoin[join] = "";
-								}
-								join = guiObj.inactiveTextJoin;
-								if (join.length && join != guiObj.activeTextJoin && excludedJoins.indexOf(join) === -1) {
-									this.sJoin[join] = "";
-								}
-							}
+						if (guiObj.type === "Button") {
 							if (!excluded) {
 								this.dJoin[join] = 0;
+								this.buttonRepeat[join] = 0;
 							}
-						} else if (!excluded) {
-							if (type === 'a') {
-								this.aJoin[join] = 0;
-							} else if (type === 's') {
+							join = guiObj.activeTextJoin;
+							if (join.length && excludedJoins.indexOf(join) === -1) {
 								this.sJoin[join] = "";
 							}
-						}
-						if (subpages !== null && guiObj.type == "SubpageRef") {
-							var j, ns = subpages.length, name = guiObj.subpage;
-							for (j = 0; j < ns; j++) {
-								if (subpages[j].name == name) {
-									this.monitorGuiObjects(subpages[j].objects, null, excludedJoins);
-									break;
+							join = guiObj.inactiveTextJoin;
+							if (join.length && join != guiObj.activeTextJoin && excludedJoins.indexOf(join) === -1) {
+								this.sJoin[join] = "";
+							}
+						} else {
+							if (!excluded) {
+								type = join.charAt(0);
+								if (type === 'd') {
+									this.dJoin[join] = 0;
+								} else if (type === 'a') {
+									this.aJoin[join] = 0;
+								} else if (type === 's') {
+									this.sJoin[join] = "";
+								}
+							}
+							if (subpages !== null && guiObj.type == "SubpageRef") {
+								var j, ns = subpages.length, name = guiObj.subpage;
+								for (j = 0; j < ns; j++) {
+									if (subpages[j].name == name) {
+										this.monitorGuiObjects(subpages[j].objects, null, excludedJoins);
+										break;
+									}
 								}
 							}
 						}

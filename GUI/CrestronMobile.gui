@@ -51,6 +51,7 @@
   </tokens>
   <scripts>
     <script name="CrestronMobileV3.js" />
+	<script name="DemoConfig.js" />
   </scripts>
   <page name="Startup" j="0" transition="None" subtype="None" time="0" ease="">
     <portrait />

@@ -156,26 +156,31 @@ var CrestronMobile = {
 			// the joins from the list to the monitored join for this processor
 			monitorGuiObjects: function(guiObjects, subpages, excludedJoins) {
 				if (guiObjects !== null) {
-					var i, n, guiObj, join, type;
+					var i, n, guiObj, join, type, excluded;
 					for (i = 0, n = guiObjects.length; i < n; i++) {
 						guiObj = guiObjects[i];
 						join = guiObj.join;
-						if (excludedJoins.indexOf(join) === -1) {
-							type = join.charAt(0);
-							if (type === 'd') {
-								this.dJoin[join] = 0;
-								if (guiObj.type === "Button") {
+						type = join.charAt(0);
+						excluded = (excludedJoins.indexOf(join) === -1);
+						if (type === 'd') {
+							if (guiObj.type === "Button") {
+								if (!excluded) {
 									this.buttonRepeat[join] = 0;
-									join = guiObj.activeTextJoin;
-									if (join.length && excludedJoins.indexOf(join) === -1) {
-										this.sJoin[join] = "";
-									}
-									join = guiObj.inactiveTextJoin;
-									if (join.length && join != guiObj.activeTextJoin && excludedJoins.indexOf(join) === -1) {
-										this.sJoin[join] = "";
-									}
 								}
-							} else if (type === 'a') {
+								join = guiObj.activeTextJoin;
+								if (join.length && excludedJoins.indexOf(join) === -1) {
+									this.sJoin[join] = "";
+								}
+								join = guiObj.inactiveTextJoin;
+								if (join.length && join != guiObj.activeTextJoin && excludedJoins.indexOf(join) === -1) {
+									this.sJoin[join] = "";
+								}
+							}
+							if (!excluded) {
+								this.dJoin[join] = 0;
+							}
+						} else if (!excluded) {
+							if (type === 'a') {
 								this.aJoin[join] = 0;
 							} else if (type === 's') {
 								this.sJoin[join] = "";

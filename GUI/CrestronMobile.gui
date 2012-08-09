@@ -17,7 +17,7 @@
     </devices>
   </properties>
   <systems>
-    <system name="CrestronMobile" ip="192.168.0.249" port="50100" protocol="tcp" alwayson="1" accept="0" ssl="0" maxconnections="0" heartbeatRx="" heartbeatTx="" heartbeatMode="-1" eom="" connectionStatus="9000" disconnectionStatus="0">
+      <system name="CrestronMobile" ip="192.168.0.81" port="50100" protocol="tcp" alwayson="1" offlinequeue="0" accept="0" acceptBroadcasts="0" ssl="0" maxconnections="0" heartbeatRx="" heartbeatTx="" heartbeatMode="-1" eom="&lt;/cresnet&gt;" connectionStatus="9000" disconnectionStatus="0" js="CrestronMobile.sendData()">
       <fb name="Feedback" regex="." />
     </system>
   </systems>
@@ -42,14 +42,16 @@
     <theme type="input" name=".input_default"><![CDATA[ background-color: White; border-width: 0px; color: Black; font-size: 12px; font-family: 'Arial'; text-align: left; vertical-align: middle; font-weight: bold; font-style: none; text-decoration: none; display: table-cell;]]></theme>
   </themes>
   <tokens>
-    <token name="[Password]" value="1234" persist="1" />
-    <token name="[MaxDigitalJoins]" value="2000" persist="1" />
-    <token name="[MinDigitalJoins]" value="200" persist="1" />
+    <token name="[cmPassword]" value="1234" persist="1" />
+    <token name="[dJoinMax]" value="2000" persist="1" />
+    <token name="[aJoinMax]" value="20" persist="1" />
+    <token name="[sJoinMax]" value="20" persist="1" />
     <token name="[CrestronMobile]" value="CrestronMobile" persist="1" />
     <token name="[FeedbackName]" value="Feedback" />
   </tokens>
   <scripts>
-    <script name="CrestronMobile.js" />
+    <script name="CrestronMobileV3.js" />
+	<script name="DemoConfig.js" />
   </scripts>
   <page name="Startup" j="0" transition="None" subtype="None" time="0" ease="">
     <portrait />

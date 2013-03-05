@@ -31,6 +31,41 @@ var CrestronMobileConfig_CrestronMobile = {
 	excludedJoins: ["d9000"],
 
 	// The password to use to connect to this Crestron processor
-	password: "1234"
+	password: "1234",
 
+	// Handle communication port changes based on UUID (as used for licensing) if using the same GUI on multiple devices
+	// Must have CrestronMobile symbols setup on the correct ports waiting for connections.
+	basePort : 50300,
+	portStep : 100,
+	notificationJoin: "s4002", // Set to null to ignore device number reference in GUI
+							   // (mainly used for debugging puposes)
+	devices : [
+		// { uuid : "YOUR DEVICE UUID HERE" },
+		// { uuid : "ANOTHER DEVICE UUID HERE" },
+		// { uuid : "ONE LAST UUID HERE" }
+	],
+
+	setup : function(systemName) {
+		// First check that the system name exists
+		if (!CF.systems.hasOwnProperty(systemName)) {
+			CF.log("CrestronMobileConfig Error: System name doesn't exist - " + systemName);
+			return;
+		}
+		for (var i = 0; i < this.devices.length; i++) {
+			// calculate port number based on config settings
+			var portNumber = (this.basePort + (i * this.portStep));
+
+			if (this.devices[i].uuid === CF.device.uniqueIdentifier) {
+				CF.setSystemProperties(systemName, {
+					port : portNumber
+				});
+				//Display device number on panel for reference if required
+				if (this.notificationJoin) {
+					// Will output something like 'iPad 1'
+					CF.setJoin(this.notificationJoin, CF.device.model + " " + (i + 1));
+				}
+				break;
+			}
+		};
+	}
 };

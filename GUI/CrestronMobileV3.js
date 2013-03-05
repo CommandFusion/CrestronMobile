@@ -42,12 +42,6 @@ var CrestronMobile = {
 			}
 		}
 
-		// Setup unique ports if CrestronUUID was included
-		try {
-			CrestronUUID.setup();
-		} catch (ex) {
-		}
-
 		// Global watch to enable all CrestronMobile instances when GUI preloading is complete
 		CF.watch(CF.PreloadingCompleteEvent, this.onGUIPreloadComplete);
 
@@ -72,6 +66,8 @@ var CrestronMobile = {
 					if (window[autoconfigName] !== undefined) {
 						autoconfigFound = true;
 						associatedSystems[systemName] = window[autoconfigName];
+						// Setup unique ports if required in the config script
+						associatedSystems[systemName].setup(systemName);
 					}
 				}
 			}
@@ -275,7 +271,7 @@ var CrestronMobile = {
 				var self = this;
 				CF.watch(CF.NetworkStatusChangeEvent, function(networkStatus) { self.onNetworkStatusChange(networkStatus); }, true);
 				CF.watch(CF.ConnectionStatusChangeEvent, self.systemName, function(system,connected,remote) { self.onSystemConnectionChanged(system,connected,remote); });
-				CF.watch(CF.FeedbackMatchedEvent, self.systemName, "Feedback", function(feedback,match) { self.processFeedback(feedback,match); });
+				CF.watch(CF.FeedbackMatchedEvent, self.systemName, self.systemName+"Feedback", function(feedback,match) { self.processFeedback(feedback,match); });
 
 				CF.watch(CF.ObjectPressedEvent, buttonJoins, function(j) { self.onButtonPressed(j); });
 				CF.watch(CF.ObjectReleasedEvent, buttonJoins, function(j) { self.onButtonReleased(j); });
@@ -288,7 +284,7 @@ var CrestronMobile = {
 				CF.watch(CF.GUISuspendedEvent, function() { self.onGUISuspended(); });
 				CF.watch(CF.GUIResumedEvent, function() { self.onGUIResumed(); });
 
-				// Setup heartneat timer
+				// Setup heartbeat timer
 				this.heartbeatTimer = setInterval(function () {
 					if (!self.guiSuspended) {
 						if (self.updateComplete) {
@@ -765,5 +761,5 @@ CF.modules.push({
 	name:"CrestronMobile",			// the name of this module
 	setup:CrestronMobile.setup,		// the setup function to call before CF.userMain
 	object:CrestronMobile,			// the `this' object for the setup function
-	version:"v3.0"					// the version of this module
+	version:"v3.1"					// the version of this module
 });

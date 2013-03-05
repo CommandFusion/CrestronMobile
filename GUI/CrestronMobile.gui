@@ -18,7 +18,7 @@
   </properties>
   <systems>
       <system name="CrestronMobile" ip="192.168.0.81" port="50100" protocol="tcp" alwayson="1" offlinequeue="0" accept="0" acceptBroadcasts="0" ssl="0" maxconnections="0" heartbeatRx="" heartbeatTx="" heartbeatMode="-1" eom="&lt;/cresnet&gt;" connectionStatus="9000" disconnectionStatus="0" js="CrestronMobile.sendData()">
-      <fb name="Feedback" regex="." />
+      <fb name="CrestronMobileFeedback" regex="." />
     </system>
   </systems>
   <themes>

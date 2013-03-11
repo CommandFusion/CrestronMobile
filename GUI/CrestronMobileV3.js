@@ -170,6 +170,15 @@ var CrestronMobile = {
 							if (join.length && join != guiObj.activeTextJoin && excludedJoins.indexOf(join) === -1) {
 								this.sJoin[join] = "";
 							}
+						} else if (guiObj.type === "Slider") {
+							if (!excluded) {
+								this.aJoin[join] = 0;
+							}
+							join = guiObj.pressedJoin;
+							if (join.length && excludedJoins.indexOf(join) === -1) {
+								this.dJoin[join] = 0;
+								this.buttonRepeat[join] = 0;
+							}
 						} else {
 							if (!excluded) {
 								type = join.charAt(0);

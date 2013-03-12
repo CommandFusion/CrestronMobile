@@ -536,9 +536,10 @@ var CrestronMobile = {
 
 			onSliderReleased: function(join) {
 				if (this.initialized) {
-					var id = join.substring(1);
+					var digitalJoin = this.sliderPressJoin[join];
+					var id = digitalJoin.substring(1);
 					if (this.sliderPress[id] !== 0) {
-						clearInterval(this.buttonRepeat[id]);
+						clearInterval(this.sliderPress[id]);
 						this.sliderPress[id] = 0;
 					}
 					this.sendData("<cresnet><data><bool id=\"" + id + "\" value=\"false\" repeating=\"true\"/></data></cresnet>");

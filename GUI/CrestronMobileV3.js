@@ -3,7 +3,7 @@
 
  AUTHORS:	Greg Soli, Audio Advice - Florent Pillet, CommandFusion
  CONTACT:	greg.soli@audioadvice.com
- VERSION:	v 3.1 - March 11th, 2013
+ VERSION:	v 3.1 - March 13th, 2013
 
  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
  */

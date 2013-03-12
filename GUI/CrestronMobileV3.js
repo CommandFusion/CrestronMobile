@@ -147,6 +147,8 @@ var CrestronMobile = {
 			dJoin: {},
 			sJoin: {},
 			buttonRepeat: {},
+			sliderPress: {},
+			sliderPressJoin: {},
 
 			// Take a list of GUI objects (and a list of joins to exclude) and add all
 			// the joins from the list to the monitored join for this processor
@@ -174,10 +176,12 @@ var CrestronMobile = {
 							if (!excluded) {
 								this.aJoin[join] = 0;
 							}
-							join = guiObj.pressedJoin;
-							if (join.length && excludedJoins.indexOf(join) === -1) {
-								this.dJoin[join] = 0;
-								this.buttonRepeat[join] = 0;
+							var pressJoin = guiObj.pressedJoin;
+							if (pressJoin.length && excludedJoins.indexOf(pressJoin) === -1) {
+								this.dJoin[pressJoin] = 0;
+								this.sliderPress[pressJoin] = 0;
+								// Map the sliders analog join with the digital join
+								this.sliderPressJoin[join] = pressJoin;
 							}
 						} else {
 							if (!excluded) {
@@ -207,7 +211,7 @@ var CrestronMobile = {
 			initialize: function(config, guiDescription, additionalExcludedJoins) {
 				var i, j, n, c;
 				var guiPages = guiDescription.pages, numGuiPages = guiPages.length, page, subpages = guiDescription.subpages;
-				var buttonJoins = [], analogJoins = [], serialJoins = [], digitalJoins = [], excludedJoins = [];
+				var buttonJoins = [], analogJoins = [], serialJoins = [], digitalJoins = [], excludedJoins = [], sliderPressJoins =[];
 
 				// get the optional list of excluded joins, otherwise we'll use an empty list
 				if (config["excludedJoins"] !== undefined) {
@@ -270,6 +274,13 @@ var CrestronMobile = {
 					}
 				}
 
+				joins = this.sliderPressJoin;
+				for (j in joins) {
+					if (joins.hasOwnProperty(j)) {
+						sliderPressJoins.push(j);
+					}
+				}
+
 				// Disable system if preloading is not complete yet
 				if (!CrestronMobile.preloadComplete) {
 					this.connection("disconnect");
@@ -284,6 +295,8 @@ var CrestronMobile = {
 
 				CF.watch(CF.ObjectPressedEvent, buttonJoins, function(j) { self.onButtonPressed(j); });
 				CF.watch(CF.ObjectReleasedEvent, buttonJoins, function(j) { self.onButtonReleased(j); });
+				CF.watch(CF.ObjectPressedEvent, sliderPressJoins, function(j) { self.onSliderPressed(j); });
+				CF.watch(CF.ObjectReleasedEvent, sliderPressJoins, function(j) { self.onSliderReleased(j); });
 				CF.watch(CF.ObjectDraggedEvent, analogJoins, function(j,v) { self.onAnalogChanged(j,v); });
 				CF.watch(CF.JoinChangeEvent, serialJoins, function(j,v,t) { self.onSerialChanged(j,v,t); });
 				CF.watch(CF.JoinChangeEvent, digitalJoins, function(j,v) { self.onDigitalChanged(j,v); });
@@ -493,6 +506,40 @@ var CrestronMobile = {
 					if (this.buttonRepeat[id] !== 0) {
 						clearInterval(this.buttonRepeat[id]);
 						this.buttonRepeat[id] = 0;
+					}
+					this.sendData("<cresnet><data><bool id=\"" + id + "\" value=\"false\" repeating=\"true\"/></data></cresnet>");
+				}
+			},
+
+			onSliderPressed: function(join) {
+				if (this.initialized) {
+					var digitalJoin = this.sliderPressJoin[join];
+					var id = digitalJoin.substring(1);
+					var data = "<cresnet><data><bool id=\"" + id + "\" value=\"true\" repeating=\"true\"/></data></cresnet>";
+					this.sendData(data);
+					var timer = this.sliderPress[id];
+					if (timer !== 0) {
+						clearInterval(timer);
+						this.sliderPress[id] = 0;
+					}
+					var self = this;
+					this.sliderPress[id] = setInterval(function () {
+						if (self.initialized) {
+							self.sendData(data);
+						} else {
+							clearInterval(self.sliderPress[id]);
+							self.sliderPress[id] = 0;
+						}
+					}, 500);
+				}
+			},
+
+			onSliderReleased: function(join) {
+				if (this.initialized) {
+					var id = join.substring(1);
+					if (this.sliderPress[id] !== 0) {
+						clearInterval(this.buttonRepeat[id]);
+						this.sliderPress[id] = 0;
 					}
 					this.sendData("<cresnet><data><bool id=\"" + id + "\" value=\"false\" repeating=\"true\"/></data></cresnet>");
 				}

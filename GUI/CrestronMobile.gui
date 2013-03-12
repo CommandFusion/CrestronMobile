@@ -1,3 +1,4 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
 <gui>
   <properties>
     <project>CrestronMobile</project>
@@ -17,7 +18,7 @@
     </devices>
   </properties>
   <systems>
-      <system name="CrestronMobile" ip="192.168.0.81" port="50100" protocol="tcp" alwayson="1" offlinequeue="0" accept="0" acceptBroadcasts="0" ssl="0" maxconnections="0" heartbeatRx="" heartbeatTx="" heartbeatMode="-1" eom="&lt;/cresnet&gt;" connectionStatus="9000" disconnectionStatus="0" js="CrestronMobile.sendData()">
+    <system name="CrestronMobile" ip="192.168.0.32" port="50100" protocol="tcp" alwayson="1" offlinequeue="0" accept="0" acceptBroadcasts="0" ssl="0" maxconnections="0" heartbeatRx="" heartbeatTx="" heartbeatMode="-1" eom="&lt;/cresnet&gt;" connectionStatus="9000" disconnectionStatus="0" js="CrestronMobile.sendData()">
       <fb name="CrestronMobileFeedback" regex="." />
     </system>
   </systems>
@@ -51,7 +52,7 @@
   </tokens>
   <scripts>
     <script name="CrestronMobileV3.js" />
-	<script name="DemoConfig.js" />
+    <script name="DemoConfig.js" />
   </scripts>
   <page name="Startup" j="0" transition="None" subtype="None" time="0" ease="">
     <portrait />
@@ -87,7 +88,7 @@
       </input>
       <txt j="3" x="218" y="144" w="582" h="44" t="Title_C" wrap="False" l="0">
       </txt>
-      <slider j="7" d="0" x="383" y="595" w="306" h="13" min="0" max="100" decimals="0" unit="decimal" t="horizontal" sim="0" l="0" />
+      <slider j="7" d="5" x="383" y="595" w="306" h="13" min="0" max="100" decimals="0" unit="decimal" t="horizontal" sim="1" l="0" />
     </landscape>
   </page>
 </gui>

@@ -152,57 +152,65 @@ var CrestronMobile = {
 
 			// Take a list of GUI objects (and a list of joins to exclude) and add all
 			// the joins from the list to the monitored join for this processor
-			monitorGuiObjects: function(guiObjects, subpages, excludedJoins) {
-				if (guiObjects !== null) {
-					var i, n, guiObj, join, type, excluded;
-					for (i = 0, n = guiObjects.length; i < n; i++) {
-						guiObj = guiObjects[i];
-						join = guiObj.join;
-						excluded = (excludedJoins.indexOf(join) !== -1);
-						if (guiObj.type === "Button") {
-							if (!excluded) {
-								this.dJoin[join] = 0;
-								this.buttonRepeat[join] = 0;
+			monitorGuiObjects: function(objs, subpages, excludedJoins) {
+				if (objs == null) return;
+				var i, n, guiObj, join, type, excluded, sp;
+				for (i = 0, n = objs.length; i < n; i++) {
+					guiObj = objs[i];
+					join = guiObj.join;
+					excluded = (excludedJoins.indexOf(join) !== -1);
+					if (guiObj.type === "Button") {
+						if (!excluded) {
+							this.dJoin[join] = 0;
+							this.buttonRepeat[join] = 0;
+						}
+						join = guiObj.activeTextJoin;
+						if (join.length && excludedJoins.indexOf(join) === -1) {
+							this.sJoin[join] = "";
+						}
+						join = guiObj.inactiveTextJoin;
+						if (join.length && join != guiObj.activeTextJoin && excludedJoins.indexOf(join) === -1) {
+							this.sJoin[join] = "";
+						}
+					} else if (guiObj.type === "Slider") {
+						if (!excluded) {
+							this.aJoin[join] = 0;
+						}
+						var pressJoin = guiObj.pressedJoin;
+						if (pressJoin.length && excludedJoins.indexOf(pressJoin) === -1) {
+							this.dJoin[pressJoin] = 0;
+							this.sliderPress[pressJoin] = 0;
+							this.sliderPressJoin[join] = pressJoin;		// Map the sliders analog join with the digital join
+						}
+					} else if (guiObj.type === "SubpageRef") {
+						if (!excluded) {
+							this.dJoin[join] = 0;
+						}
+						sp = subpages[guiObj.subpage];
+						if (sp != null) {
+							this.monitorGuiObjects(sp.objects, subpages, excludedJoins);
+						}
+					} else if (guiObj.type === "List") {
+						if (guiObj.header.length) {
+							sp = subpages[guiObj.header];
+							if (sp != null) {
+								this.monitorGuiObjects(sp.objects, subpages, excludedJoins);
 							}
-							join = guiObj.activeTextJoin;
-							if (join.length && excludedJoins.indexOf(join) === -1) {
-								this.sJoin[join] = "";
+						}
+						if (guiObj.footer.length) {
+							sp = subpages[guiObj.footer];
+							if (sp != null) {
+								this.monitorGuiObjects(sp.objects, subpages, excludedJoins);
 							}
-							join = guiObj.inactiveTextJoin;
-							if (join.length && join != guiObj.activeTextJoin && excludedJoins.indexOf(join) === -1) {
-								this.sJoin[join] = "";
-							}
-						} else if (guiObj.type === "Slider") {
-							if (!excluded) {
-								this.aJoin[join] = 0;
-							}
-							var pressJoin = guiObj.pressedJoin;
-							if (pressJoin.length && excludedJoins.indexOf(pressJoin) === -1) {
-								this.dJoin[pressJoin] = 0;
-								this.sliderPress[pressJoin] = 0;
-								// Map the sliders analog join with the digital join
-								this.sliderPressJoin[join] = pressJoin;
-							}
-						} else {
-							if (!excluded) {
-								type = join.charAt(0);
-								if (type === 'd') {
-									this.dJoin[join] = 0;
-								} else if (type === 'a') {
-									this.aJoin[join] = 0;
-								} else if (type === 's') {
-									this.sJoin[join] = "";
-								}
-							}
-							if (subpages !== null && guiObj.type == "SubpageRef") {
-								var j, ns = subpages.length, name = guiObj.subpage;
-								for (j = 0; j < ns; j++) {
-									if (subpages[j].name == name) {
-										this.monitorGuiObjects(subpages[j].objects, null, excludedJoins);
-										break;
-									}
-								}
-							}
+						}
+					} else if (!excluded) {
+						type = join.charAt(0);
+						if (type === 'd') {
+							this.dJoin[join] = 0;
+						} else if (type === 'a') {
+							this.aJoin[join] = 0;
+						} else if (type === 's') {
+							this.sJoin[join] = "";
 						}
 					}
 				}
@@ -210,8 +218,11 @@ var CrestronMobile = {
 
 			initialize: function(config, guiDescription, additionalExcludedJoins) {
 				var i, j, n, c;
-				var guiPages = guiDescription.pages, numGuiPages = guiPages.length, page, subpages = guiDescription.subpages;
-				var buttonJoins = [], analogJoins = [], serialJoins = [], digitalJoins = [], excludedJoins = [], sliderPressJoins =[];
+				var guiPages = guiDescription.pages, numGuiPages = guiPages.length, page, subpages = {};
+				var buttonJoins = [], analogJoins = [], serialJoins = [], digitalJoins = [], excludedJoins = [], sliderPressJoins = [];
+
+				// create a named map of subpages (new in v3.1)
+				guiDescription.subpages.forEach(function(subpage) { subpages[subpage.name] = subpage; });
 
 				// get the optional list of excluded joins, otherwise we'll use an empty list
 				if (config["excludedJoins"] !== undefined) {

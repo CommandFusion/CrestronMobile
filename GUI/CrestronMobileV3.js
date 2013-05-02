@@ -2,8 +2,8 @@
  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
  AUTHORS:	Greg Soli, Audio Advice - Florent Pillet, CommandFusion
- CONTACT:	greg.soli@audioadvice.com
- VERSION:	v 3.1 - March 13th, 2013
+ CONTACT:	support@commandfusion.com
+ VERSION:	v 3.2 - May 2nd, 2013
 
  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
  */
@@ -25,9 +25,24 @@ var CrestronMobile = {
 	},
 
 	// Global Variable Assignments
-	debug: true,			// set to true to add CrestronMobile's own debugging messages to the log
+	debug: false,				// set to true to add CrestronMobile's own debugging messages to the log
+	debugListJoin: null,		// join to output logs to a list when not connected to remote debugger (i.e. "l1") - this is for debugging purposes only
+	debugListTextJoin: null,	// string join in the content subpage of the debug list (i.e. "s1") - this is for debugging purposes only
 	preloadComplete: false,
-	instances: [],			// an array holding one module instance for each remote Crestron system
+	instances: [],				// an array holding one module instance for each remote Crestron system
+
+	//
+	// Logging helper
+	//
+	log: function(msg) {
+		if (CF.debug) {
+			CF.log(msg);
+		} else if (this.debugListJoin != null) {
+			var d=new Date(), o={};
+			o[this.debugListTextJoin] = ("0"+d.getHours()).substr(-2)+":"+("0"+d.getMinutes()).substr(-2)+":"+("0"+d.getSeconds()).substr(-2)+"."+("00"+d.getMilliseconds()).substr(-2)+"> "+msg;
+			CF.listAdd(this.debugListJoin, [o]);
+		}
+	},
 
 	//
 	// Module setup function
@@ -35,19 +50,35 @@ var CrestronMobile = {
 	setup:function () {
 		if (CrestronMobile.debug) {
 			// turn off CrestronMobile logging if Remote Debugger is not connected
-			if (CF.debug) {
-				CF.log("CrestronMobile - setting up");
+			if (CF.debug || CrestronMobile.debugListJoin) {
+				CrestronMobile.log("setting up");
 			} else {
 				CrestronMobile.debug = false;
 			}
 		}
 
-		// Global watch to enable all CrestronMobile instances when GUI preloading is complete
-		CF.watch(CF.PreloadingCompleteEvent, this.onGUIPreloadComplete);
+		// Replace CF.userMain() with a function that will execute only after the user's CF.userMain()
+		// function has run
+		var oldUserMain = CF.userMain;
+		CF.userMain = function() {
+			if (oldUserMain != null) {
+				if (CrestronMobile.debug)
+					CrestronMobile.log("Startup: executing previously defined CF.userMain()")
+				oldUserMain.apply(CF, []);
+			}
+			if (CrestronMobile.debug)
+				CrestronMobile.log("Startup: setting up instances for connection");
+			CrestronMobile.preloadComplete = true;
+			CrestronMobile.instances.forEach(function(instance) { instance.connection("connect"); });
+		}
 
 		// Detect autoconfiguration. Skip system with empty name (main control system)
 		var autoconfigFound = false, associatedSystems = {};
 		var additionalExcludedJoins = ["d0","s0","a0"];		// ignore zero joins by default
+		if (CrestronMobile.debugListJoin != null)
+			additionalExcludedJoins.push(CrestronMobile.debugListJoin);
+		if (CrestronMobile.debugListTextJoin != null)
+			additionalExcludedJoins.push(CrestronMobile.debugListTextJoin);
 		for (var systemName in CF.systems) {
 			if (CF.systems.hasOwnProperty(systemName)) {
 				// We want to automatically exclude the connection and disconnection joins for all systems
@@ -67,7 +98,8 @@ var CrestronMobile = {
 						autoconfigFound = true;
 						associatedSystems[systemName] = window[autoconfigName];
 						// Setup unique ports if required in the config script
-						associatedSystems[systemName].setup(systemName);
+						if (associatedSystems[systemName]["setup"] != null)
+							associatedSystems[systemName].setup(systemName);
 					}
 				}
 			}
@@ -88,7 +120,7 @@ var CrestronMobile = {
 						password: globalTokens["[cmPassword]"] || "1234"
 					};
 					if (CrestronMobile.debug) {
-						CF.log("CrestronMobile falling back on compatibility mode, will use system " + cmSystem + " with password " + associatedSystems[cmSystem].password);
+						CrestronMobile.log("falling back on compatibility mode, will use system " + cmSystem + " with password " + associatedSystems[cmSystem].password);
 					}
 				}
 			}
@@ -99,18 +131,13 @@ var CrestronMobile = {
 					if (associatedSystems.hasOwnProperty(sys)) {
 						// Create a new instance
 						var instance = CrestronMobile.createInstance(sys, associatedSystems[sys], guiDescription, additionalExcludedJoins);
+						if (CrestronMobile.debug)
+							CrestronMobile.log("Adding new instance to CrestronMobile instances, using system " + sys);
 						CrestronMobile.instances.push(instance);
 					}
 				}
 			});
 		});
-	},
-
-	onGUIPreloadComplete:function () {
-		if (CrestronMobile.debug) {
-			CF.log("CrestronMobile: GUI preload complete");
-		}
-		CrestronMobile.instances.forEach(function(instance) { instance.connection("connect"); });
 	},
 
 	/**
@@ -127,7 +154,7 @@ var CrestronMobile = {
 			password: config.password,
 
 			state: CrestronMobile.NOT_INITIALIZED,
-			loggedIn:false,
+			loggedIn: false,
 			updateComplete: false,
 			initialized: false,
 			hasNetwork: false,
@@ -292,16 +319,14 @@ var CrestronMobile = {
 					}
 				}
 
-				// Disable system if preloading is not complete yet
-				if (!CrestronMobile.preloadComplete) {
-					this.connection("disconnect");
-				}
+				// we must first turn the system OFF
+				this.connection("disconnect");
 
 				// Watch events. For each event, we define a lamba function whose sole purpose is to call
 				// into the instance's callback, ensuring that `this' is properly set when the callback executes
 				var self = this;
 				CF.watch(CF.NetworkStatusChangeEvent, function(networkStatus) { self.onNetworkStatusChange(networkStatus); }, true);
-				CF.watch(CF.ConnectionStatusChangeEvent, self.systemName, function(system,connected,remote) { self.onSystemConnectionChanged(system,connected,remote); });
+				CF.watch(CF.ConnectionStatusChangeEvent, self.systemName, function(system,connected,remote) { self.onSystemConnectionChanged(system,connected,remote); }, true);
 				CF.watch(CF.FeedbackMatchedEvent, self.systemName, self.systemName+"Feedback", function(feedback,match) { self.processFeedback(feedback,match); });
 
 				CF.watch(CF.ObjectPressedEvent, buttonJoins, function(j) { self.onButtonPressed(j); });
@@ -318,25 +343,16 @@ var CrestronMobile = {
 				CF.watch(CF.GUIResumedEvent, function() { self.onGUIResumed(); });
 
 				// Setup heartbeat timer
-				this.heartbeatTimer = setInterval(function () {
-					if (!self.guiSuspended) {
-						if (self.updateComplete) {
-							self.sendHeartBeat();
-						} else if (self.hasNetwork && ++self.heartbeatCount > 5 && !self.loggedIn && self.connectionResetTimeout === 0) {
-							if (CrestronMobile.debug) {
-								CF.log("CrestronMobile: heartbeatTimer fired, not loggedIn, time to reset connection (heartbeatCount=" + self.heartbeatCount + ")");
-							}
-							self.heartbeatCount = 0;
-							self.connection("reset");
-						}
-					}
-				}, 2000);
+				this.setupHeartbeatTimer();
+
+				if (CrestronMobile.preloadComplete)
+					this.connection("connect");
 			},
 
 			resetRunningJoins: function() {
 				// Reset the known values of joins
 				if (CrestronMobile.debug) {
-					CF.log("CrestronMobile: resetting running joins");
+					CrestronMobile.log("resetting running joins");
 				}
 				var j, joins = this.dJoin;
 				for (j in joins) {
@@ -373,26 +389,36 @@ var CrestronMobile = {
 			// ------------------------------------------------------------------
 			onNetworkStatusChange:function (networkStatus) {
 				if (CrestronMobile.debug) {
-					CF.log(this.systemName + ": networkStatus hasNetwork=" + networkStatus.hasNetwork);
+					CrestronMobile.log(this.systemName + ": onNetworkStatusChange hasNetwork=" + networkStatus.hasNetwork);
 				}
-				this.hasNetwork = networkStatus.hasNetwork;
-				if (networkStatus.hasNetwork) {
-					if (CrestronMobile.preloadComplete) {
-						this.connection("connect");
+				if (this.hasNetwork != networkStatus.hasNetwork) {
+					this.hasNetwork = networkStatus.hasNetwork;
+					if (networkStatus.hasNetwork) {
+						if (this.state == CrestronMobile.DISCONNECTED) {
+							this.connection("connect");
+						}
+					} else {
+						this.connection("disconnect");
 					}
-				} else {
-					this.connection("disconnect");
 				}
 			},
 
 			onSystemConnectionChanged: function(system, connected, remote) {
 				if (CrestronMobile.debug) {
-					CF.log(this.systemName + ": system connected=" + connected + ", remote=" + remote);
+					CrestronMobile.log(this.systemName + ": connected=" + connected + ", remote=" + remote + ", systemConnected="+this.systemConnected+", state="+this.state);
 				}
-				this.systemConnected = connected;
-				if (connected) {
-					// reset heartbeatCount to give enough time for initial exchange
+				if (this.systemConnected != connected) {
+					this.systemConnected = connected;
 					this.heartbeatCount = 0;
+					if (connected) {
+						// reset heartbeatCount to give enough time for initial exchange
+						this.clearConnectionResetTimeout();
+					} else if (this.state == CrestronMobile.CONNECTING || this.state == CrestronMobile.CONNECTED) {
+						this.state = CrestronMobile.CONNECTING;
+						this.updateComplete = false;
+						this.loggedIn = false;
+						this.setLoadingMessageVisible(true);
+					}
 				}
 			},
 
@@ -409,7 +435,7 @@ var CrestronMobile = {
 
 			connection:function (type) {
 				if (CrestronMobile.debug) {
-					CF.log(this.systemName + ": connection " + type);
+					CrestronMobile.log(this.systemName + ": connection(\"" + type + "\")");
 				}
 
 				if (type === "reset") {
@@ -420,37 +446,35 @@ var CrestronMobile = {
 						this.heartbeatCount = 0;
 						this.updateComplete = false;
 						this.loggedIn = false;
+						this.setLoadingMessageVisible(true);
 
 						CF.setSystemProperties(this.systemName, { enabled:false });
 
 						var self = this;
 						this.connectionResetTimeout = setTimeout(function () {
-							if (CrestronMobile.debug) {
-								CF.log(self.systemName + ": connectionResetTimeout expired, re-enabling system");
-							}
+							if (CrestronMobile.debug)
+								CrestronMobile.log(self.systemName + ": connectionResetTimeout expired, re-enabling system");
 							self.connectionResetTimeout = 0;
 							self.heartbeatCount = 0;			// prevent timer from reseting us again too early
 							CF.setSystemProperties(self.systemName, { enabled:true });
 							self.state = CrestronMobile.CONNECTING;
-							self.setLoadingMessageVisible(true);
-						}, 500);
+						}, 100);
 					}
 
 				} else if (type === "disconnect") {
 					this.clearConnectionResetTimeout();
 					this.heartbeatCount = 0;
-					this.setLoadingMessageVisible(false);
 					this.updateComplete = false;
 					this.loggedIn = false;
-
-					CF.setSystemProperties(this.systemName, { enabled:false });
-
 					this.state = CrestronMobile.DISCONNECTED;
+					CF.setSystemProperties(this.systemName, { enabled:false });
+					this.setLoadingMessageVisible(true);
 
 				} else if (type === "connect") {
 					// this won't have any impact if system is not already connecting
 					if (this.state === CrestronMobile.NOT_INITIALIZED || this.state === CrestronMobile.DISCONNECTED) {
 						CF.setSystemProperties(this.systemName, { enabled:true });
+						this.setLoadingMessageVisible(true);
 						this.state = CrestronMobile.CONNECTING;
 					}
 				}
@@ -461,31 +485,40 @@ var CrestronMobile = {
 			// ------------------------------------------------------------------
 			onGUISuspended:function () {
 				if (CrestronMobile.debug) {
-					CF.log(this.systemName + ": GUI suspended");
+					CrestronMobile.log(this.systemName + ": GUI suspended");
 				}
 				this.guiSuspended = true;
+				this.clearHeartbeatTimer();
+				this.clearConnectionResetTimeout();
 				this.heartbeatCount = 0;
 			},
 
 			onGUIResumed:function () {
 				if (CrestronMobile.debug) {
-					CF.log(this.systemName + ": GUI resumed");
+					CrestronMobile.log(this.systemName + ": GUI resumed");
 				}
 				this.guiSuspended = false;
 				this.heartbeatCount = 0;
 				this.clearConnectionResetTimeout();
+				this.setupHeartbeatTimer();
+				if (this.state == CrestronMobile.RESETTING) {
+					CF.setSystemProperties(this.systemName, { enabled:true });
+					this.state = CrestronMobile.CONNECTING;
+				}
 			},
 
 			onOrientationChange:function (pageName, newOrientation) {
 				if (CrestronMobile.debug) {
-					CF.log(this.systemName + ": orientation changed, pageName=" + pageName + ", newOrientation=" + newOrientation);
+					CrestronMobile.log(this.systemName + ": orientation changed, pageName=" + pageName + ", newOrientation=" + newOrientation);
 				}
-				if (newOrientation === CF.LandscapeOrientation) {
-					this.sendData("<cresnet><data><i32 id=\"17259\" value=\"2\"/></data></cresnet>");
-					this.orientation = "2";
-				} else {
-					this.sendData("<cresnet><data><i32 id=\"17259\" value=\"1\"/></data></cresnet>");
-					this.orientation = "1";
+				if (this.initialized) {
+					if (newOrientation === CF.LandscapeOrientation) {
+						this.sendData("<cresnet><data><i32 id=\"17259\" value=\"2\"/></data></cresnet>");
+						this.orientation = "2";
+					} else {
+						this.sendData("<cresnet><data><i32 id=\"17259\" value=\"1\"/></data></cresnet>");
+						this.orientation = "1";
+					}
 				}
 			},
 
@@ -603,6 +636,31 @@ var CrestronMobile = {
 			// ------------------------------------------------------------------
 			// Heartbeat management
 			// ------------------------------------------------------------------
+			setupHeartbeatTimer: function() {
+				var self = this;
+				if (this.heartbeatTimer != 0)
+					return;
+				this.heartbeatTimer = setInterval(function () {
+					if (!self.guiSuspended) {
+						if (self.updateComplete) {
+							self.sendHeartBeat();
+						} else if (self.hasNetwork && ++self.heartbeatCount > 5 && !self.loggedIn && self.connectionResetTimeout === 0) {
+							if (CrestronMobile.debug) {
+								CrestronMobile.log("heartbeatTimer fired, not loggedIn, time to reset connection (heartbeatCount=" + self.heartbeatCount + ")");
+							}
+							self.connection("reset");
+						}
+					}
+				}, 2000);
+			},
+
+			clearHeartbeatTimer: function() {
+				if (this.heartbeatTimer != 0) {
+					clearInterval(this.heartbeatTimer);
+					this.heartbeatTimer = 0;
+				}
+			},
+
 			sendHeartBeat:function () {
 				if (this.updateComplete) {
 					if (this.heartbeatCount++ > 2) {
@@ -610,7 +668,7 @@ var CrestronMobile = {
 						// is not already in progress
 						if (this.connectionResetTimeout === 0) {
 							if (CrestronMobile.debug) {
-								CF.log(this.systemName + ": no response from Crestron processor for more than 5 seconds, resetting the connection");
+								CrestronMobile.log(this.systemName + ": no response from Crestron processor for more than 5 seconds, resetting the connection");
 							}
 							this.heartbeatCount = 0;
 							this.connection("reset");
@@ -647,7 +705,7 @@ var CrestronMobile = {
 				for (var i = 0; i < dataElements.length; i++) {
 					data = dataElements[i];
 					child = data.firstElementChild;
-					isUTF8 = (data.getAttribute("enc") === "UTF-8");
+					isUTF8 = true; //(data.getAttribute("enc") === "UTF-8");
 					while (child !== null) {
 						childTag = child.tagName;
 						if (childTag === "bool") {
@@ -708,7 +766,7 @@ var CrestronMobile = {
 			gotProgramReadyStatus: function(str) {
 				// This is the first message we should receive upon connecting to Crestron
 				if (CrestronMobile.debug) {
-					CF.log(this.systemName + ": got program ready status " + str);
+					CrestronMobile.log(this.systemName + ": got program ready status " + str);
 				}
 				//Found Program Ready Message, send Connect Request to system
 				this.clearConnectionResetTimeout();
@@ -725,8 +783,9 @@ var CrestronMobile = {
 			gotConnectResponse: function(str) {
 				//Found Connect Response Message, validate response
 				if (CrestronMobile.debug) {
-					CF.log("CrestronMobile: got connect response " + str);
+					CrestronMobile.log("got connect response " + str);
 				}
+				this.state = CrestronMobile.CONNECTED;
 				if (str.indexOf("<code>0</code>") > 0) {
 					//Connection is good, send Update Request Message to system
 					this.loggedIn = true;
@@ -740,7 +799,7 @@ var CrestronMobile = {
 				// Update complete, send all current known join status to iViewer
 				// and begin sending Heartbeat Message
 				if (CrestronMobile.debug) {
-					CF.log(this.systemName + ": got endOfUpdate " + str);
+					CrestronMobile.log(this.systemName + ": got endOfUpdate " + str);
 				}
 				this.setLoadingMessageVisible(false);
 
@@ -780,7 +839,7 @@ var CrestronMobile = {
 
 			gotHeartbeatRequest: function(str) {
 				if (CrestronMobile.debug) {
-					CF.log(this.systemName + ": got heartbeat request " + str);
+					CrestronMobile.log(this.systemName + ": got heartbeat request " + str);
 				}
 				this.setLoadingMessageVisible(false);
 				this.updateComplete = true;
@@ -788,6 +847,9 @@ var CrestronMobile = {
 			},
 
 			gotDisconnectRequest: function() {
+				if (CrestronMobile.debug) {
+					CrestronMobile.log(this.systemName + ": got disconnect request");
+				}
 				this.setLoadingMessageVisible(true);
 				this.updateComplete = false;
 				this.initialized = false;
@@ -810,8 +872,8 @@ var CrestronMobile = {
 					this.gotHeartbeatRequest(str);
 				} else if (str.indexOf("<string") >= 0 || str.indexOf("<bool") >= 0 || str.indexOf("<i32") >= 0) {
 					//Parse the updated values
-					if (CrestronMobile.debug) {
-						CF.log("CrestronMobile: got update " + str);
+					if (CrestronMobile.debug && CF.debug) {
+						CrestronMobile.log("CrestronMobile: got update " + str);
 					}
 					this.parseXML(str);
 				} else if (str.indexOf("<disconnectRequest>") >= 0) {
@@ -829,5 +891,5 @@ CF.modules.push({
 	name:"CrestronMobile",			// the name of this module
 	setup:CrestronMobile.setup,		// the setup function to call before CF.userMain
 	object:CrestronMobile,			// the `this' object for the setup function
-	version:"v3.1"					// the version of this module
+	version:"v3.2"					// the version of this module
 });

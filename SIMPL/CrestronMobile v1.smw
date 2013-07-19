@@ -4,7 +4,7 @@ Version=1
 [
 ObjTp=FSgntr
 Sgntr=SimplWindow
-RelVrs=3.02.04
+RelVrs=4.01.10
 IntStrVrs=2
 MinSMWVrs=2.00.00
 MinTIOVrs=412
@@ -19,13 +19,13 @@ S1Nd=2
 SLNd=3
 PrNm=CrestronMobile v1.smw
 CmVr=3.00
-DbVr=27.00.010.00
-DvcDbVr=35.05.004.00
+DbVr=36.05.015.00
+DvcDbVr=48.00.002.00
 PgmNm=Greg Soli
 DlrNm=Audio Advice, Inc.
 CltNm=Crestron Mobile
-SmVr=741
-DvVr=741
+SmVr=852
+DvVr=852
 TpN1=1
 TpN2=2
 TpN3=3
@@ -46,6 +46,8 @@ PrH=1
 DvC=590
 ObjVer=1
 Ad=00
+RelStat=Release
+ProdLine=QM,2-Series
 DbH=1
 mC=5
 C1=3
@@ -76,6 +78,7 @@ ObjVer=1
 SlC=2
 Ad=01
 SmH=6
+RelStat=Release
 mC=1
 C1=5
 ]
@@ -112,6 +115,7 @@ ObjVer=1
 SlC=2
 Ad=02
 SmH=7
+RelStat=Release
 mC=4
 C1=8
 C2=10
@@ -139,6 +143,7 @@ DvC=125
 ObjVer=1
 SlC=63
 Ad=01
+RelStat=Release
 ]
 [
 ObjTp=Dv
@@ -161,6 +166,7 @@ DvC=125
 ObjVer=1
 SlC=63
 Ad=02
+RelStat=Release
 ]
 [
 ObjTp=Dv
@@ -183,6 +189,7 @@ DvC=125
 ObjVer=1
 SlC=63
 Ad=03
+RelStat=Release
 ]
 [
 ObjTp=Dv
@@ -205,6 +212,7 @@ DvC=125
 ObjVer=1
 SlC=63
 Ad=04
+RelStat=Release
 ]
 [
 ObjTp=Dv
@@ -228,6 +236,7 @@ ObjVer=1
 SlC=2
 Ad=03
 SmH=8
+RelStat=Release
 mC=2
 C1=18
 C2=20
@@ -254,6 +263,8 @@ ObjVer=1
 SlC=129
 Ad=A
 SmH=9
+RelStat=Release
+ProdLine=QM
 CmH=1
 ]
 [
@@ -278,6 +289,8 @@ ObjVer=1
 SlC=129
 Ad=B
 SmH=10
+RelStat=Release
+ProdLine=QM
 CmH=2
 ]
 [
@@ -302,6 +315,7 @@ ObjVer=1
 SlC=2
 Ad=04
 SmH=11
+RelStat=Release
 mC=254
 C1=24
 C2=25
@@ -578,7 +592,7 @@ SlC=132
 DvF=Sl
 Ad=03
 mC=1
-C1=280
+C1=281
 ]
 [
 ObjTp=Dv
@@ -612,18 +626,22 @@ ObjVer=1
 SlC=2
 Ad=05
 SmH=12
+RelStat=Release
 ]
 [
 ObjTp=Dv
 Nm=Crestron Mobile
-H=280
+H=281
 PrH=26
-DvC=2219
+DvC=3484
 ObjVer=1
 Ad=03
-SmH=13
-DbH=2
-EtH=1
+SmH=17
+RelStat=Release
+ProdLine=Crestron Mobile
+DbH=3
+CsH=1
+EtH=2
 ]
 [
 ObjTp=Cm
@@ -661,11 +679,17 @@ Mdl=QM-RMC
 ]
 [
 ObjTp=Db
-H=2
-DvH=280
+H=3
+DvH=281
 Whc=3
 Mnf=Crestron
 Mdl=Crestron Mobile
+Tpe=Crestron Mobile
+]
+[
+ObjTp=Cs
+H=1
+DvH=281
 ]
 [
 ObjTp=FP
@@ -681,23 +705,23 @@ Mx1=0
 ObjTp=Bw
 H=1
 Lx=0
-Ly=321
-Rx=485
-Ry=642
+Ly=0
+Rx=1542
+Ry=344
 Xm=-1
 Ym=-1
-SH=13
+SH=17
 Z=100
-Ht=1
-Hi=2007
+Ht=4
+Hi=5
 ]
 [
 ObjTp=Bw
 H=1
 Lx=0
-Ly=0
-Rx=485
-Ry=321
+Ly=688
+Rx=1542
+Ry=1032
 Xm=-1
 Ym=-1
 SH=16
@@ -707,12 +731,10 @@ Hi=2
 ]
 [
 ObjTp=Et
-H=1
-DvH=280
+H=2
+DvH=281
 IPM=255.255.255.0
 IPA=127.0.0.1
-IPD=1241972
-IsD=0
 ]
 [
 ObjTp=Sm
@@ -882,7 +904,7 @@ PrH=1
 CF=2
 Cmn1=C2QENET-1
 mC=1
-C1=13
+C1=17
 ]
 [
 ObjTp=Sm
@@ -897,46 +919,9 @@ Cmn1=C2I-RMC-FRONTPANEL
 ]
 [
 ObjTp=Sm
-H=13
-SmC=2647
-Nm=Crestron Mobile
-ObjVer=2
-DvH=280
-PrH=11
-CF=2
-n1I=2000
-n2I=32
-n1O=2000
-Cmn1=Crestron Mobile
-mI=2064
-I1=5
-I2=7
-I3=6
-I2000=4
-I2001=8
-I2002=11
-I2007=12
-I2033=9
-I2035=10
-mO=2032
-tO=2064
-O1=5
-O2=7
-O3=6
-O2000=4
-O2002=11
-O2007=12
-O2034=10
-mP=4
-P1=250d
-P2=50100d
-P3=IPad1
-P4=1234
-]
-[
-ObjTp=Sm
 H=14
 SmC=101
+Nm=Serial I/O
 ObjVer=1
 PrH=4
 CF=2
@@ -962,6 +947,7 @@ P6=
 ObjTp=Sm
 H=15
 SmC=22
+Nm=Analog Ramp
 ObjVer=1
 PrH=4
 CF=2
@@ -980,6 +966,7 @@ P1=5s
 ObjTp=Sm
 H=16
 SmC=858
+Nm=Make String Permanent
 ObjVer=1
 PrH=4
 CF=2
@@ -989,6 +976,45 @@ I1=9
 I2=10
 mP=1
 P1=50d
+]
+[
+ObjTp=Sm
+H=17
+SmC=3987
+Nm=Crestron Mobile
+ObjVer=1
+DvH=281
+PrH=11
+CF=2
+n1I=2000
+n2I=32
+n1O=2000
+Cmn1=Crestron Mobile
+mI=2064
+I1=5
+I2=7
+I3=6
+I5=13
+I2001=8
+I2002=11
+I2007=12
+I2033=9
+I2035=10
+mO=2032
+tO=2064
+O1=5
+O2=7
+O3=6
+O5=14
+O2000=4
+O2002=11
+O2007=12
+O2034=10
+mP=4
+P1=250d
+P2=50100d
+P3=IPad1
+P4=1234
 ]
 [
 ObjTp=Sg
@@ -1039,4 +1065,14 @@ ObjTp=Sg
 H=12
 Nm=slider_value_2
 SgTp=2
+]
+[
+ObjTp=Sg
+H=13
+Nm=slider_fb
+]
+[
+ObjTp=Sg
+H=14
+Nm=slider
 ]

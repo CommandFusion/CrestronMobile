@@ -3,7 +3,7 @@
 
  AUTHORS:	Greg Soli, Audio Advice - Florent Pillet, CommandFusion
  CONTACT:	support@commandfusion.com
- VERSION:	v 3.2 - May 2nd, 2013
+ VERSION:	v 3.3 - July 19th, 2013
 
  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
  */
@@ -294,9 +294,8 @@ var CrestronMobile = {
 					if (joins.hasOwnProperty(j)) {
 						if (this.buttonRepeat[j] !== undefined) {
 							buttonJoins.push(j);
-						} else {
-							digitalJoins.push(j);
 						}
+						digitalJoins.push(j);
 					}
 				}
 				joins = this.aJoin;
@@ -336,6 +335,7 @@ var CrestronMobile = {
 				CF.watch(CF.ObjectDraggedEvent, analogJoins, function(j,v) { self.onAnalogChanged(j,v); });
 				CF.watch(CF.JoinChangeEvent, serialJoins, function(j,v,t) { self.onSerialChanged(j,v,t); });
 				CF.watch(CF.JoinChangeEvent, digitalJoins, function(j,v) { self.onDigitalChanged(j,v); });
+				CF.watch(CF.JoinChangeEvent, analogJoins, function(j,v) { self.onAnalogChanged(j,v); });
 
 				CF.watch(CF.OrientationChangeEvent, function(page,orientation) { self.onOrientationChange(page,orientation); }, true);
 
@@ -526,7 +526,10 @@ var CrestronMobile = {
 				if (this.initialized) {
 					var id = join.substring(1);
 					var data = "<cresnet><data><bool id=\"" + id + "\" value=\"true\" repeating=\"true\"/></data></cresnet>";
-					this.sendData(data);
+					if (this.dJoin[join] !== 1) {
+						this.dJoin[join] = 1;
+						this.sendData(data);
+					}
 					var timer = this.buttonRepeat[id];
 					if (timer !== 0) {
 						clearInterval(timer);
@@ -547,11 +550,14 @@ var CrestronMobile = {
 			onButtonReleased: function(join) {
 				if (this.initialized) {
 					var id = join.substring(1);
+					if (this.dJoin[join] !== 0) {
+						this.dJoin[join] = 0;
+						this.sendData("<cresnet><data><bool id=\"" + id + "\" value=\"false\" repeating=\"true\"/></data></cresnet>");
+					}
 					if (this.buttonRepeat[id] !== 0) {
 						clearInterval(this.buttonRepeat[id]);
 						this.buttonRepeat[id] = 0;
 					}
-					this.sendData("<cresnet><data><bool id=\"" + id + "\" value=\"false\" repeating=\"true\"/></data></cresnet>");
 				}
 			},
 
@@ -891,5 +897,5 @@ CF.modules.push({
 	name:"CrestronMobile",			// the name of this module
 	setup:CrestronMobile.setup,		// the setup function to call before CF.userMain
 	object:CrestronMobile,			// the `this' object for the setup function
-	version:"v3.2"					// the version of this module
+	version:"v3.3"					// the version of this module
 });

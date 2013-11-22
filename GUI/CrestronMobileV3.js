@@ -3,7 +3,7 @@
 
  AUTHORS:	Greg Soli, Audio Advice - Florent Pillet, CommandFusion
  CONTACT:	support@commandfusion.com
- VERSION:	v 3.2 - May 2nd, 2013
+ VERSION:	v 3.4 - Nov. 22, 2013
 
  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
  */
@@ -215,18 +215,21 @@ var CrestronMobile = {
 						}
 						sp = subpages[guiObj.subpage];
 						if (sp != null) {
+							delete subpages[guiObj.subpage];
 							this.monitorGuiObjects(sp.objects, subpages, excludedJoins);
 						}
 					} else if (guiObj.type === "List") {
 						if (guiObj.header.length) {
 							sp = subpages[guiObj.header];
 							if (sp != null) {
+								delete subpages[guiObj.header];
 								this.monitorGuiObjects(sp.objects, subpages, excludedJoins);
 							}
 						}
 						if (guiObj.footer.length) {
 							sp = subpages[guiObj.footer];
 							if (sp != null) {
+								delete subpages[guiObj.footer];
 								this.monitorGuiObjects(sp.objects, subpages, excludedJoins);
 							}
 						}

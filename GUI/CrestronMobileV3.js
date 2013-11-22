@@ -894,5 +894,5 @@ CF.modules.push({
 	name:"CrestronMobile",			// the name of this module
 	setup:CrestronMobile.setup,		// the setup function to call before CF.userMain
 	object:CrestronMobile,			// the `this' object for the setup function
-	version:"v3.2"					// the version of this module
+	version:"v3.4"					// the version of this module
 });

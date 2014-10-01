@@ -261,8 +261,12 @@ var CrestronMobile = {
 				excludedJoins = excludedJoins.concat(additionalExcludedJoins);
 
 				// gather the complete set of joins to monitor
-				for (i = 0, n = config.pages.length; i < n; i++) {
-					var regex = new RegExp(config.pages[i]);
+				var configPages = config["pages"] || [];
+				if (!configPages.length) {
+					configPages.push(".*");
+				}
+				for (i = 0, n = configPages.length; i < n; i++) {
+					var regex = new RegExp(configPages[i]);
 					for (j = 0; j < numGuiPages; j++) {
 						page = guiPages[j];
 						if (regex.test(page.name)) {
@@ -894,5 +898,5 @@ CF.modules.push({
 	name:"CrestronMobile",			// the name of this module
 	setup:CrestronMobile.setup,		// the setup function to call before CF.userMain
 	object:CrestronMobile,			// the `this' object for the setup function
-	version:"v3.4"					// the version of this module
+	version:"v3.4.1"			// the version of this module
 });

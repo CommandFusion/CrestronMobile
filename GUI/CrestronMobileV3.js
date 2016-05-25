@@ -1,9 +1,9 @@
 /* Crestron Mobile Interface
  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
- AUTHORS:	Greg Soli, Audio Advice - Florent Pillet, CommandFusion
+ AUTHORS:	Greg Soli - Audio Advice, Florent Pillet - CommandFusion, Jarrod Bell - CommandFusion
  CONTACT:	support@commandfusion.com
- VERSION:	v 3.4 - Nov. 22, 2013
+ VERSION:	v 3.5 - May 25, 2016
 
  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
  */
@@ -47,7 +47,7 @@ var CrestronMobile = {
 	//
 	// Module setup function
 	//
-	setup:function () {
+	setup: function () {
 		if (CrestronMobile.debug) {
 			// turn off CrestronMobile logging if Remote Debugger is not connected
 			if (CF.debug || CrestronMobile.debugListJoin) {
@@ -117,7 +117,10 @@ var CrestronMobile = {
 					associatedSystems[cmSystem] = {
 						pages: [".*"],
 						joins: [],
-						password: globalTokens["[cmPassword]"] || "1234"
+						password: globalTokens["[cmPassword]"] || "1234",
+						dJoinMax: globalTokens["[dJoinMax]"] || 3999,
+						aJoinMax: globalTokens["[aJoinMax]"] || 3999,
+						sJoinMax: globalTokens["[sJoinMax]"] || 3999
 					};
 					if (CrestronMobile.debug) {
 						CrestronMobile.log("falling back on compatibility mode, will use system " + cmSystem + " with password " + associatedSystems[cmSystem].password);
@@ -167,8 +170,12 @@ var CrestronMobile = {
 
 			connectionResetTimeout:0,
 
-			loadingMessageVisible:false,
-			loadingMessageSubpage:"d4001",
+			loadingMessageVisible: false,
+			loadingMessageSubpage: "d4001",
+
+			dJoinMax: config.dJoinMax || 3999,				// the highest digital join number that will be processed by CrestronMobile
+			aJoinMax: config.aJoinMax || 3999,				// the highest analog join number that will be processed by CrestronMobile
+			sJoinMax: config.sJoinMax || 3999,				// the highest serial join number that will be processed by CrestronMobile
 
 			aJoin: {},
 			dJoin: {},
@@ -181,35 +188,65 @@ var CrestronMobile = {
 			// the joins from the list to the monitored join for this processor
 			monitorGuiObjects: function(objs, subpages, excludedJoins) {
 				if (objs == null) return;
-				var i, n, guiObj, join, type, excluded, sp;
+				var i, n, guiObj, join, type, excluded, sp, excludedList = [];
 				for (i = 0, n = objs.length; i < n; i++) {
 					guiObj = objs[i];
 					join = guiObj.join;
 					excluded = (excludedJoins.indexOf(join) !== -1);
 					if (guiObj.type === "Button") {
+					 	if (parseInt(join.substr(1), 10) > this.dJoinMax) {
+							excluded = true;
+							if (CrestronMobile.debug) {
+								excludedList.push(join);
+							}
+						}
 						if (!excluded) {
 							this.dJoin[join] = 0;
 							this.buttonRepeat[join] = 0;
 						}
 						join = guiObj.activeTextJoin;
 						if (join.length && excludedJoins.indexOf(join) === -1) {
-							this.sJoin[join] = "";
+							if (parseInt(join.substr(1), 10) <= this.sJoinMax) {
+								this.sJoin[join] = "";
+							} else if (CrestronMobile.debug) {
+								excludedList.push(join);
+							}
 						}
 						join = guiObj.inactiveTextJoin;
 						if (join.length && join != guiObj.activeTextJoin && excludedJoins.indexOf(join) === -1) {
-							this.sJoin[join] = "";
+							if (parseInt(join.substr(1), 10) <= this.sJoinMax) {
+								this.sJoin[join] = "";
+							} else if (CrestronMobile.debug) {
+								excludedList.push(join);
+							}
 						}
 					} else if (guiObj.type === "Slider") {
+						if (parseInt(join.substr(1), 10) > this.aJoinMax) {
+							excluded = true;
+							if (CrestronMobile.debug) {
+								excludedList.push(join);
+							}
+						}
 						if (!excluded) {
 							this.aJoin[join] = 0;
 						}
 						var pressJoin = guiObj.pressedJoin;
 						if (pressJoin.length && excludedJoins.indexOf(pressJoin) === -1) {
-							this.dJoin[pressJoin] = 0;
-							this.sliderPress[pressJoin] = 0;
-							this.sliderPressJoin[join] = pressJoin;		// Map the sliders analog join with the digital join
+							if (parseInt(pressJoin.substr(1), 10) <= this.dJoinMax) {
+								this.dJoin[pressJoin] = 0;
+								this.sliderPress[pressJoin] = 0;
+								this.sliderPressJoin[join] = pressJoin;		// Map the sliders analog join with the digital join
+							} else if (CrestronMobile.debug) {
+								excludedList.push(pressJoin);
+							}
 						}
 					} else if (guiObj.type === "SubpageRef") {
+						if (parseInt(join.substr(1), 10) > this.dJoinMax) {
+							excluded = true;
+							if (CrestronMobile.debug) {
+								excludedList.push(join);
+							}
+						}
 						if (!excluded) {
 							this.dJoin[join] = 0;
 						}
@@ -235,14 +272,23 @@ var CrestronMobile = {
 						}
 					} else if (!excluded) {
 						type = join.charAt(0);
-						if (type === 'd') {
-							this.dJoin[join] = 0;
-						} else if (type === 'a') {
-							this.aJoin[join] = 0;
-						} else if (type === 's') {
-							this.sJoin[join] = "";
+						if (this.hasOwnProperty(type + "JoinMax") && parseInt(join.substr(1), 10) > this[type + "JoinMax"]) {
+							if (CrestronMobile.debug) {
+								excludedList.push(join);
+							}
+						} else {
+							if (type === 'd') {
+								this.dJoin[join] = 0;
+							} else if (type === 'a') {
+								this.aJoin[join] = 0;
+							} else if (type === 's') {
+								this.sJoin[join] = "";
+							}
 						}
 					}
+				}
+				if (CrestronMobile.debug && excludedList.length > 0) {
+					CrestronMobile.log("CrestronMobile: Excluded joins " + excludedList.join(', '));
 				}
 			},
 
@@ -384,7 +430,7 @@ var CrestronMobile = {
 			// ------------------------------------------------------------------
 			// User interface support
 			// ------------------------------------------------------------------
-			setLoadingMessageVisible:function (show) {
+			setLoadingMessageVisible: function (show) {
 				if (this.loadingMessageSubpage !== null && this.loadingMessageVisible !== show) {
 					this.loadingMessageVisible = show;
 					CF.setJoin(this.loadingMessageSubpage, show);
@@ -394,7 +440,7 @@ var CrestronMobile = {
 			// ------------------------------------------------------------------
 			// Network events, data and connection handling
 			// ------------------------------------------------------------------
-			onNetworkStatusChange:function (networkStatus) {
+			onNetworkStatusChange: function (networkStatus) {
 				if (CrestronMobile.debug) {
 					CrestronMobile.log(this.systemName + ": onNetworkStatusChange hasNetwork=" + networkStatus.hasNetwork);
 				}
@@ -440,7 +486,7 @@ var CrestronMobile = {
 				}
 			},
 
-			connection:function (type) {
+			connection: function (type) {
 				if (CrestronMobile.debug) {
 					CrestronMobile.log(this.systemName + ": connection(\"" + type + "\")");
 				}
@@ -490,7 +536,7 @@ var CrestronMobile = {
 			// ------------------------------------------------------------------
 			// GUI events handling
 			// ------------------------------------------------------------------
-			onGUISuspended:function () {
+			onGUISuspended: function () {
 				if (CrestronMobile.debug) {
 					CrestronMobile.log(this.systemName + ": GUI suspended");
 				}
@@ -500,7 +546,7 @@ var CrestronMobile = {
 				this.heartbeatCount = 0;
 			},
 
-			onGUIResumed:function () {
+			onGUIResumed: function () {
 				if (CrestronMobile.debug) {
 					CrestronMobile.log(this.systemName + ": GUI resumed");
 				}
@@ -514,7 +560,7 @@ var CrestronMobile = {
 				}
 			},
 
-			onOrientationChange:function (pageName, newOrientation) {
+			onOrientationChange: function (pageName, newOrientation) {
 				if (CrestronMobile.debug) {
 					CrestronMobile.log(this.systemName + ": orientation changed, pageName=" + pageName + ", newOrientation=" + newOrientation);
 				}
@@ -597,7 +643,7 @@ var CrestronMobile = {
 				}
 			},
 
-			onAnalogChanged:function (join, value) {
+			onAnalogChanged: function (join, value) {
 				if (this.initialized) {
 					// only transmit update if Crestron doesn't already know this value. In practice, iViewer only fires
 					// join change events when the join value actually changes
@@ -608,7 +654,7 @@ var CrestronMobile = {
 				}
 			},
 
-			onSerialChanged:function (join, value) {
+			onSerialChanged: function (join, value) {
 				if (this.initialized) {
 					if (this.sJoin[join] !== value) {
 						this.sJoin[join] = value;
@@ -621,7 +667,7 @@ var CrestronMobile = {
 				}
 			},
 
-			onDigitalChanged:function (join, value) {
+			onDigitalChanged: function (join, value) {
 				if (this.initialized) {
 					if (value === 1 || value === "1") {
 						if (this.dJoin[join] === 1) {
@@ -668,7 +714,7 @@ var CrestronMobile = {
 				}
 			},
 
-			sendHeartBeat:function () {
+			sendHeartBeat: function () {
 				if (this.updateComplete) {
 					if (this.heartbeatCount++ > 2) {
 						// After a few seconds without any answer, reset the connection only if another reset
@@ -690,15 +736,15 @@ var CrestronMobile = {
 			// ------------------------------------------------------------------
 			// Crestron messages processing
 			// ------------------------------------------------------------------
-			parseXML:function (xml) {
+			parseXML: function (xml) {
 				if (!this.initialized && (xml.indexOf("string") >= 0 && xml.indexOf("value=\"\"") >= 0)) {
 					return;
 				}
 				var parser = new window.DOMParser();
 				xml = xml.substring(xml.indexOf("<?xml"));
 				var tree = parser.parseFromString(xml, "text/xml");
-				//Moved parser back to Parse function.  Possible memory leak causing crash when defined globally.
-				//Also trying to clear the parser when I'm done with it so it doesn't stay resident.
+				// Moved parser back to Parse function.  Possible memory leak causing crash when defined globally.
+				// Also trying to clear the parser when I'm done with it so it doesn't stay resident.
 				parser = undefined;
 				if (tree === null) {
 					return;
@@ -863,7 +909,7 @@ var CrestronMobile = {
 				this.loggedIn = false;
 			},
 
-			processFeedback:function (feedbackname, str) {
+			processFeedback: function (feedbackname, str) {
 				this.heartbeatCount = 0;
 				this.lastDataReceived = Date.now();
 

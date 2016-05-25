@@ -1,1 +1,7 @@
 *.asv
+.DS_Store
+.idea
+GUI/CrestronMobile.gui.zip
+SIMPL/CrestronMobile v1_compiled.zip
+SIMPL/CrestronMobile v1.sm2
+SIMPL/SPlsWork

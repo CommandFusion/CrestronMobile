@@ -15,6 +15,7 @@
 //
 // See the comments below for a list of the properties you can define.
 //
+// For example, the object below will be used when the guiDesigner project has a system named 'CrestronMobile'.
 
 var CrestronMobileConfig_CrestronMobile = {
 	// A list of pages for which we are monitoring all joins of. A page name can be a regular expression
@@ -27,8 +28,13 @@ var CrestronMobileConfig_CrestronMobile = {
 	additionalJoins: [],
 
 	// An optional exclusion list that allows you to exclude joins in the relevant pages
-	// from interaction with the Crestron processor
-	excludedJoins: ["d9000"],
+	// from interaction with the Crestron processor. Note that any join over the main maxJoin setting will also be
+	// excluded (default maxJoin = 4000).
+	excludedJoins: [""],
+
+	dJoinMax: 3999,				// the highest digital join number that will be processed by CrestronMobile
+	aJoinMax: 3999,				// the highest analog join number that will be processed by CrestronMobile
+	sJoinMax: 3999,				// the highest serial join number that will be processed by CrestronMobile
 
 	// The password to use to connect to this Crestron processor
 	password: "1234",
@@ -38,7 +44,7 @@ var CrestronMobileConfig_CrestronMobile = {
 	basePort : 50300,
 	portStep : 100,
 	notificationJoin: "s4002", // Set to null to ignore device number reference in GUI
-							   // (mainly used for debugging puposes)
+							   // (mainly used for debugging purposes)
 	devices : [
 		// { uuid : "YOUR DEVICE UUID HERE" },
 		// { uuid : "ANOTHER DEVICE UUID HERE" },
@@ -59,7 +65,7 @@ var CrestronMobileConfig_CrestronMobile = {
 				CF.setSystemProperties(systemName, {
 					port : portNumber
 				});
-				//Display device number on panel for reference if required
+				// Display device number on panel for reference if required
 				if (this.notificationJoin) {
 					// Will output something like 'iPad 1'
 					CF.setJoin(this.notificationJoin, CF.device.model + " " + (i + 1));

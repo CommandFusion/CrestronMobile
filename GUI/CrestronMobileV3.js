@@ -389,6 +389,7 @@ var CrestronMobile = {
 				CF.watch(CF.ObjectDraggedEvent, analogJoins, function(j,v) { self.onAnalogChanged(j,v); });
 				CF.watch(CF.JoinChangeEvent, serialJoins, function(j,v,t) { self.onSerialChanged(j,v,t); });
 				CF.watch(CF.JoinChangeEvent, digitalJoins, function(j,v) { self.onDigitalChanged(j,v); });
+				CF.watch(CF.JoinChangeEvent, analogJoins, function(j,v) { self.onAnalogChanged(j,v); });
 
 				CF.watch(CF.OrientationChangeEvent, function(page,orientation) { self.onOrientationChange(page,orientation); }, true);
 

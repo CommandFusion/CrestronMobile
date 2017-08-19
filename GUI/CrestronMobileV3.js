@@ -787,7 +787,7 @@ var CrestronMobile = {
 									}
 								}
 								if (isUTF8) {
-									tempValue = decodeURIComponent(escape(tempValue));
+									tempValue = decodeURIComponent(encodeURIComponent(tempValue));
 								}
 								if (this.initialized) {
 									updates.push({join:join, value:tempValue});
